@@ -236,10 +236,25 @@ details.expert > summary:hover { color: var(--accent); }
 .rib-svg .dims text { font-size: 4px; fill: var(--muted); font-variant-numeric: tabular-nums; }
 .rib-svg .dims text.sub { font-size: 3.4px; }
 .card .rib-svg.mini { aspect-ratio: 1; background: var(--paper); border-radius: 4px; padding: 4px; }
-.points { display: grid; gap: 2px; }
-.point { display: grid; grid-template-columns: 1fr 1fr; gap: 0 8px; align-items: center; border-left: 2px solid var(--line); padding-left: 8px; }
-.point .point-name { grid-column: 1 / -1; font-size: 12px; font-weight: 600; color: var(--muted); margin-top: 6px; }
-.point label:has(.num) { grid-template-columns: 1fr; gap: 2px; margin: 2px 0; font-size: 12px; color: var(--muted); }
-.point label.corner { font-size: 12.5px; margin: 2px 0; }
-.point .num { grid-template-columns: 26px minmax(0, 1fr) 26px; }
-.point button.icon { justify-self: end; }
+/* The measurement table is compact, so the drawing does the heavy lifting and the numbers stay one glance away. */
+table.points { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; margin-top: 6px; }
+table.points th, table.points td { padding: 2px 3px; text-align: left; font-size: 12px; }
+table.points thead th { color: var(--muted); font-weight: 600; }
+table.points tbody th { color: var(--muted); font-weight: 600; width: 40px; }
+table.points tbody tr.on { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+table.points tbody tr.on th { color: var(--accent); }
+table.points td:nth-child(2), table.points td:nth-child(3) { width: 34%; }
+table.points .u input { padding-right: 30px; min-height: 28px; }
+.draw-tools { display: flex; gap: 6px; flex-wrap: wrap; }
+.draw-hint { margin-top: 6px; }
+.rib-svg.editing { touch-action: none; user-select: none; }
+.rib-svg .handle { cursor: grab; outline: none; }
+.rib-svg .handle circle:not(.hit), .rib-svg .handle rect { fill: var(--panel); stroke: var(--accent); stroke-width: .7; }
+.rib-svg .handle .hit { fill: transparent; }
+.rib-svg .handle:hover circle:not(.hit), .rib-svg .handle:hover rect { stroke-width: 1.2; }
+.rib-svg .handle.on circle:not(.hit), .rib-svg .handle.on rect { fill: var(--accent); }
+.rib-svg .handle:focus-visible circle:not(.hit), .rib-svg .handle:focus-visible rect { stroke: var(--ink); stroke-width: 1.2; }
+.rib-svg .add { cursor: copy; opacity: .8; }
+.rib-svg .add:hover { opacity: 1; }
+.rib-svg .add circle { fill: var(--panel); stroke: var(--accent); stroke-width: .5; stroke-dasharray: 1 .8; }
+.rib-svg .add path { stroke: var(--accent); stroke-width: .7; }

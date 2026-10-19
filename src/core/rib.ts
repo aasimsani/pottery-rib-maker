@@ -1,4 +1,4 @@
-import { profileError, sampleProfile, type CurvePoint } from './profile';
+import { foldsAt, profileError, sampleProfile, type CurvePoint } from './profile';
 import type { Settings } from '../state';
 
 export interface Check { id: string; level: 'error' | 'warn' | 'note'; message: string }
@@ -46,6 +46,10 @@ export function buildRib(s: Settings): Rib {
 
   const k = 1 / (1 - s.shrink / 100);
   const pot = sampleProfile(s.profile).map((p) => ({ r: p.r * k, z: p.z * k }));
+  // The rib pulls away from the spinning pot sideways, which it can't do where the wall folds back down.
+  const fold = foldsAt(pot);
+  // The drawing still shows the pot, so you can drag the points apart again.
+  if (fold > 0) return { ...empty, pot, checks: [{ id: 'fold', level: 'error', message: `The wall folds back on itself near ${(pot[fold].z * (1 - s.shrink / 100)).toFixed(0)} mm, so the rib couldn't pull away from the clay. Move the points there further apart, or make one a corner.` }] };
   const rmin = Math.min(...pot.map((p) => p.r)), maxLeft = Math.max(...pot.map((p) => p.r)) - rmin;
   const rim = pot[pot.length - 1].z, top = rim + s.above;
   const W = s.mirror ? 2 * maxLeft + s.body : maxLeft + s.body;

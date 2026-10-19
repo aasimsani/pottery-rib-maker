@@ -8,13 +8,18 @@ type Set = <K extends keyof Settings>(key: K, value: Settings[K]) => void;
 
 const round1 = (v: number) => Math.round(v * 10) / 10;
 
-function PotEditor({ s, set, onSave, isSaved, onDelete }: { s: Settings; set: Set; onSave: () => void; isSaved: boolean; onDelete: () => void }) {
+interface EditorProps { s: Settings; set: Set; onSave: () => void; isSaved: boolean; onDelete: () => void; selected: number | null; onSelect: (i: number) => void; onBegin: () => void }
+
+function PotEditor({ s, set, onSave, isSaved, onDelete, selected, onSelect, onBegin }: EditorProps) {
   const [keep, setKeep] = usePersistent('keepProportions', true);
   const p = s.profile, height = round1(p[p.length - 1].z - p[0].z), widest = widestD(p);
   const setProfile = (profile: ProfilePoint[]) => set('profile', [...profile].sort((a, b) => a.z - b.z));
   const edit = (q: ProfilePoint, patch: Partial<ProfilePoint>) => setProfile(p.map((x) => (x === q ? { ...x, ...patch } : x)));
   // resize() scales the whole pot. With proportions kept, height and width grow together.
-  const resize = (kz: number, kd: number) => set('profile', scaleProfile(p, keep ? kz * kd : kz, keep ? kz * kd : kd).map((q) => ({ ...q, z: round1(q.z), d: round1(q.d) })));
+  const resize = (kz: number, kd: number) => {
+    onBegin();
+    set('profile', scaleProfile(p, keep ? kz * kd : kz, keep ? kz * kd : kd).map((q) => ({ ...q, z: round1(q.z), d: round1(q.d) })));
+  };
 
   return (
     <>
@@ -24,31 +29,45 @@ function PotEditor({ s, set, onSave, isSaved, onDelete }: { s: Settings; set: Se
           <button className="secondary small" onClick={onSave}>Save to my shapes</button>
           {isSaved && <button className="secondary small" onClick={onDelete}>Delete</button>}
         </div>
-        <p className="hint">Enter the measurements of the finished pot, after firing, from the base up. A corner makes a crisp edge, such as a carination.</p>
-        <div className="points" role="list" aria-label="Pot measurements">
-          {[...p].reverse().map((q, i) => {
-            const n = p.length - 1 - i, name = n === 0 ? 'Base' : n === p.length - 1 ? 'Rim' : `Point ${n}`;
-            return (
-              <div className="point" role="listitem" key={n}>
-                <span className="point-name">{name}</span>
-                <NumberField label={`${name} height`} unit="mm" value={q.z} min={0} step={0.5} onChange={(v) => edit(q, { z: v })} />
-                <NumberField label={`${name} Ø`} unit="mm" value={q.d} min={1} step={0.5} onChange={(v) => edit(q, { d: v })} />
-                <label className="check corner" title="Make this point a sharp corner">
-                  <input type="checkbox" checked={!!q.sharp} disabled={n === 0 || n === p.length - 1} onChange={(e) => edit(q, { sharp: e.target.checked || undefined })} /> corner
-                </label>
-                <button className="icon" aria-label={`Remove ${name}`} disabled={p.length <= 2} onClick={() => setProfile(p.filter((x) => x !== q))}>×</button>
-              </div>
-            );
-          })}
-        </div>
+        <p className="hint">Draw the pot on the rib drawing, or type exact numbers here. They are the fired pot's, from the rim down to the base.</p>
+        <table className="points">
+          <thead><tr><th scope="col">Point</th><th scope="col">Height</th><th scope="col">Ø</th><th scope="col">Corner</th><th><span className="visually-hidden">Remove</span></th></tr></thead>
+          <tbody>
+            {[...p].map((q, n) => ({ q, n })).reverse().map(({ q, n }) => {
+              const name = n === 0 ? 'Base' : n === p.length - 1 ? 'Rim' : String(n + 1);
+              return (
+                <tr key={n} className={selected === n ? 'on' : ''} onFocus={() => onSelect(n)} onClick={() => onSelect(n)}>
+                  <th scope="row">{name}</th>
+                  <td><NumberField compact label={`${name} height`} unit="mm" value={q.z} min={0} step={0.5} onChange={(v) => edit(q, { z: v })} /></td>
+                  <td><NumberField compact label={`${name} Ø`} unit="mm" value={q.d} min={1} step={0.5} onChange={(v) => edit(q, { d: v })} /></td>
+                  <td><input type="checkbox" aria-label={`${name} is a corner`} checked={!!q.sharp} disabled={n === 0 || n === p.length - 1}
+                    onChange={(e) => { onBegin(); edit(q, { sharp: e.target.checked || undefined }); }} /></td>
+                  <td><button className="icon" aria-label={`Remove point ${name}`} disabled={n === 0 || p.length <= 2} onClick={() => { onBegin(); setProfile(p.filter((x) => x !== q)); }}>×</button></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
         <div className="row-actions">
           <button className="secondary small" onClick={() => {
             // The new point goes in the biggest gap, halfway between its two neighbours.
             let k = 1;
             for (let i = 1; i < p.length; i++) if (p[i].z - p[i - 1].z > p[k].z - p[k - 1].z) k = i;
+            onBegin();
             setProfile([...p, { z: round1((p[k].z + p[k - 1].z) / 2), d: round1((p[k].d + p[k - 1].d) / 2) }]);
-          }}>+ Measurement in between</button>
+            onSelect(k);
+          }}>+ Add a point</button>
         </div>
+        <details className="expert">
+          <summary>Drawing limits</summary>
+          <NumberField label="Least gap between points" unit="mm" value={s.minGap} min={0.5} max={20} step={0.5} onChange={(v) => set('minGap', v)} />
+          <NumberField label="Smallest Ø" unit="mm" value={s.minD} min={5} max={200} step={1} onChange={(v) => set('minD', v)} />
+          <NumberField label="Snap to" unit="mm" value={s.snap} min={0} max={10} step={0.5} onChange={(v) => set('snap', v)} />
+          <p className="hint">
+            A dragged point stays this far from the points above and below it, so the heights keep their order. A point also stops
+            where the curve would fold back on itself, because the rib couldn't pull away from that wall. Set Snap to 0 to move freely.
+          </p>
+        </details>
       </Section>
 
       <Section title="Size">
@@ -65,7 +84,7 @@ function PotEditor({ s, set, onSave, isSaved, onDelete }: { s: Settings; set: Se
   );
 }
 
-export function Controls(props: { s: Settings; set: Set; onSave: () => void; isSaved: boolean; onDelete: () => void }) {
+export function Controls(props: EditorProps) {
   const { s, set } = props;
   return (
     <aside className="panel controls" aria-label="Pot and rib settings">

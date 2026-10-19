@@ -3,7 +3,7 @@ import type { Settings } from '../state';
 import type { Rib } from '../core/rib';
 import type { PlatePart } from '../core/plate';
 import type { WheelMode } from './Wheel3D';
-import { RibView } from './RibView';
+import { RibView, type EditProps } from './RibView';
 import { useDialog } from './dialog';
 import { PLATE_GAP } from './PlatePanel';
 
@@ -15,6 +15,7 @@ type Mode = WheelMode | 'print';
 
 interface Props {
   s: Settings; rib: Rib; tris: Float32Array;
+  edit: EditProps & { canUndo: boolean; notice: string; onUndo: () => void; onStartOver: () => void };
   /** The exact file Download STL saves, or null when the rib doesn't fit the bed. */
   print: { stl: ArrayBuffer; name: string } | null;
   plate: PlatePart[];
@@ -23,13 +24,14 @@ interface Props {
 
 const f0 = (v: number) => v.toFixed(0);
 
-export function Preview({ s, rib, tris, print, plate, onStl, onAddToPlate, onSvg }: Props) {
+export function Preview({ s, rib, tris, print, plate, edit, onStl, onAddToPlate, onSvg }: Props) {
   const [mode, setMode] = useState<Mode>('wheel');
   const [expanded, setExpanded] = useState(false);
   const dialog = useRef<HTMLDivElement>(null), svgHost = useRef<HTMLDivElement>(null);
   useDialog(dialog, expanded, () => setExpanded(false));
 
   const ok = rib.outline.length > 0;
+  const sel = edit.selected !== null ? edit.profile[edit.selected] : undefined;
   const fired = 1 - s.shrink / 100, widest = ok ? 2 * Math.max(...rib.pot.map((p) => p.r)) : 0;
   const label = ok ? `${s.name}: a rib ${f0(rib.width)} by ${f0(rib.height)} mm that throws a pot ${f0(rib.rim)} mm tall and ${f0(widest)} mm across.` : 'No rib yet';
   const bedParts = useMemo(() => (print ? [...plate.map((p) => ({ stl: p.stl })), { stl: print.stl, current: true }] : []), [plate, print]);
@@ -60,8 +62,23 @@ export function Preview({ s, rib, tris, print, plate, onStl, onAddToPlate, onSvg
     <section className="panel preview" aria-labelledby="preview-title">
       <div className="previews">
         <div>
-          <h2 id="preview-title">Rib, as printed</h2>
-          <div ref={svgHost}><RibView rib={rib} shrink={s.shrink} label={label} /></div>
+          <div className="piece-head">
+            <h2 id="preview-title">Rib, as printed</h2>
+            <div className="draw-tools" role="toolbar" aria-label="Shape tools">
+              <button className="secondary small" onClick={edit.onUndo} disabled={!edit.canUndo} title="Undo (⌘Z or Ctrl+Z)">Undo</button>
+              <button className="secondary small" aria-pressed={!!sel?.sharp} disabled={!sel || edit.selected === 0 || edit.selected === edit.profile.length - 1}
+                onClick={() => { edit.onBegin(); edit.onCorner(edit.selected!); }}>Corner</button>
+              <button className="secondary small" disabled={!sel || edit.selected === 0 || edit.profile.length <= 2}
+                onClick={() => { edit.onBegin(); edit.onRemove(edit.selected!); }}>Delete point</button>
+              <button className="secondary small" onClick={edit.onStartOver} title="Start from a plain cylinder at this size">Start over</button>
+            </div>
+          </div>
+          <div ref={svgHost}><RibView rib={rib} shrink={s.shrink} label={label} edit={edit} /></div>
+          <p className={`hint draw-hint${edit.notice ? ' caution' : ''}`} role="status">
+            {edit.notice ? edit.notice : sel
+              ? <>Point {edit.selected! + 1} of {edit.profile.length}: <b>{sel.z} mm</b> up, <b>Ø {sel.d} mm</b>{sel.sharp ? ', corner' : ''} (fired). Arrow keys nudge it, and Shift moves 5 mm.</>
+              : <>Drag a point to reshape the pot. Drag a ＋ to add a point, or double-click anywhere. Select a point to make it a corner or delete it.</>}
+          </p>
           {ok && (
             <div className="legend">
               <span><i style={{ background: 'var(--plastic)' }} />rib</span>

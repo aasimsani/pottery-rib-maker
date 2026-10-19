@@ -46,6 +46,10 @@ export function sampleProfile(p: ProfilePoint[], step = 1): CurvePoint[] {
   return out;
 }
 
+// foldsAt() returns the index of the first sampled point that sits lower than the one before it,
+// where the curve folds back down on itself, or -1 when it rises all the way.
+export const foldsAt = (pts: CurvePoint[]) => pts.findIndex((q, i) => i > 0 && q.z < pts[i - 1].z - 1e-9);
+
 // catmullRom() is the Barry-Goldman form of the centripetal spline from p1 to p2, at t from 0 to 1.
 function catmullRom(p0: CurvePoint, p1: CurvePoint, p2: CurvePoint, p3: CurvePoint, t: number): CurvePoint {
   const knot = (a: CurvePoint, b: CurvePoint) => Math.max(1e-6, Math.sqrt(Math.hypot(b.r - a.r, b.z - a.z)));
