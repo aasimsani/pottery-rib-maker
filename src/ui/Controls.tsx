@@ -24,7 +24,7 @@ function PotEditor({ s, set, onSave, isSaved, onDelete }: { s: Settings; set: Se
           <button className="secondary small" onClick={onSave}>Save to my shapes</button>
           {isSaved && <button className="secondary small" onClick={onDelete}>Delete</button>}
         </div>
-        <p className="hint">Measurements are the finished pot, after firing, from the base up. A corner makes a crisp edge, such as a carination.</p>
+        <p className="hint">Enter the measurements of the finished pot, after firing, from the base up. A corner makes a crisp edge, such as a carination.</p>
         <div className="points" role="list" aria-label="Pot measurements">
           {[...p].reverse().map((q, i) => {
             const n = p.length - 1 - i, name = n === 0 ? 'Base' : n === p.length - 1 ? 'Rim' : `Point ${n}`;
@@ -89,8 +89,8 @@ export function Controls(props: { s: Settings; set: Set; onSave: () => void; isS
         <label>More marks at <input type="text" value={s.extraMarks} placeholder="e.g. 30, 65" onChange={(e) => set('extraMarks', e.target.value)} /></label>
         <NumberField label="Marks stand up" unit="mm" value={s.emboss} min={0} max={2} step={0.2} onChange={(v) => set('emboss', v)} />
         <p className="hint">
-          The scale counts up from the wheel head along the back edge. A long line marks the rim. Add more lines in mm, {s.labelAs === 'fired' ? 'fired' : 'wet'} height,
-          for a handle, a band, or where a wall turns. Print with the marks facing up. To print the marks in a second colour, add a filament change at the layer where they start.
+          The scale counts up from the wheel head along the back edge. A long line marks the rim. To add more lines, enter heights in mm of {s.labelAs === 'fired' ? 'fired' : 'wet'} height,
+          such as where a handle goes or where the wall turns. Print with the marks facing up. To print the marks in a second color, add a filament change at the layer where they start.
         </p>
       </Section>
 

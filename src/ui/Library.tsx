@@ -6,9 +6,9 @@ import { RibView } from './RibView';
 
 type Tab = 'pots' | 'set' | 'saved';
 const TABS: { id: Tab; label: string; hint: string }[] = [
-  { id: 'pots', label: 'Pots', hint: 'Profile ribs. Each one throws the pot it is cut from.' },
-  { id: 'set', label: 'Your printed set', hint: 'The five ribs of the Ceramic Rib Tool Set, ready to resize and mark.' },
-  { id: 'saved', label: 'Saved', hint: 'Shapes you saved. They stay in this browser.' },
+  { id: 'pots', label: 'Pots', hint: 'Each profile rib throws the pot it is cut from.' },
+  { id: 'set', label: 'Your printed set', hint: 'These are the five ribs of the Ceramic Rib Tool Set. Resize them and add marks.' },
+  { id: 'saved', label: 'Saved', hint: 'The shapes you save stay in this browser.' },
 ];
 
 const sameShape = (a: Shape, s: Settings) => a.name === s.name && JSON.stringify(a.profile) === JSON.stringify(s.profile);

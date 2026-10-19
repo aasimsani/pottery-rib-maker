@@ -130,7 +130,7 @@ export function Preview({ s, rib, tris, print, plate, onStl, onAddToPlate, onSvg
         <summary>Printing &amp; throwing tips</summary>
         <ul>
           <li><b>Print it flat</b>, marks up, exactly as exported. Turn the brim off so the working edge stays clean.</li>
-          <li><b>PETG</b> survives water and clay grit better than PLA. Your Ceramic Rib Tool Set printed well in PETG at 0.12 mm layers, with 4 walls and 40% gyroid infill, and those settings suit these ribs too.</li>
+          <li><b>PETG</b> survives water and clay grit better than PLA. Your Ceramic Rib Tool Set project uses PETG at 0.12 mm layers, with 4 walls and 40% gyroid infill. Those settings work for these ribs too.</li>
           <li>Thin layers don't smooth the curve, because the curve lies flat on the bed. They make the numbers crisper.</li>
           <li>Rub the working edge with 400-grit wet sandpaper, so it leaves a smooth wall rather than fine lines.</li>
           <li>Throw the cylinder a little taller than the rim mark, then rib from the base up while the wheel turns slowly. Trim the rim level with the mark.</li>

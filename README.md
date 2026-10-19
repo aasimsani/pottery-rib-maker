@@ -2,7 +2,7 @@
 
 Design profile ribs for the potter's wheel, and 3D print them. You describe the mug, pot, or bowl that you want to throw. The app cuts a rib whose edge is that pot's outside wall, and it puts a height scale on the rib. The app gives you an STL file to print.
 
-![The app with a rounded-base mug, its rib with a centimetre scale, a 3D view of the rib on the wheel, and a passing print check](docs/screenshot.png)
+![The app showing a rounded-base mug, its rib with a centimeter scale, the rib on the wheel in 3D, and a passing print check](docs/screenshot.png)
 
 - **The rib throws the pot you drew.** The working edge follows the pot's wall from the base to the rim. Hold the rib to the clay while the wheel turns, and the wall takes that shape.
 - **The rib has a height scale.** Ticks and numbers run up the back edge in cm, mm, or inches. A long line marks the rim, and you can add lines at any height, such as where a handle goes.
@@ -43,8 +43,8 @@ The workflow `.github/workflows/ci.yml` runs the tests and the build on every pu
 The defaults suit a Bambu Lab P2S with a 0.4 mm nozzle. To use a different bed size, change it under **Printer settings**.
 
 - Print the rib flat, with the marks facing up, exactly as exported. Turn the brim off.
-- Use PETG, because it survives water and clay grit better than PLA. The Ceramic Rib Tool Set printed well in PETG at 0.12 mm layers, with 4 walls and 40% gyroid infill.
-- To print the marks in a second colour, add a filament change at the layer where the marks start.
+- Use PETG, because it survives water and clay grit better than PLA. The print project for the Ceramic Rib Tool Set uses PETG at 0.12 mm layers, with 4 walls and 40% gyroid infill.
+- To print the marks in a second color, add a filament change at the layer where the marks start.
 - Rub the working edge with 400-grit wet sandpaper, so it leaves a smooth wall.
 
 ## Use it
@@ -53,7 +53,11 @@ Stand the rib on the wheel head or the bat, so the scale counts up from where th
 
 ## How it works
 
-The app samples a centripetal Catmull-Rom curve through the measurements. Points marked as corners split the curve into separate runs. The curve becomes the rib's working edge, and the app extrudes the outline with three.js. The marks are boxes that sink 0.2 mm into the top face, so the slicer joins them to the rib. The tests check that every rib is a closed solid, that the working edge matches the pot, and that every mark sits on the rib and clear of the finger hole.
+The app samples a centripetal Catmull-Rom curve through the measurements. Points marked as corners split the curve into separate runs. The curve becomes the rib's working edge, and the app extrudes the outline with three.js. The marks are boxes that sink 0.2 mm into the top face, so the slicer joins them to the rib. The tests check these facts for every shape in the library:
+
+- The rib is a closed solid.
+- The working edge matches the pot.
+- Every mark sits on the rib and clear of the finger hole.
 
 ## License
 
