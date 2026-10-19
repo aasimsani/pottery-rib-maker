@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pottery-rib-maker",
+  "account_id": "0166b7623c3b445802ae08ad398b3fcb",
+  "compatibility_date": "2026-10-01",
+  // The app runs entirely in the browser, so the Worker serves the Vite build as static assets.
+  // The script in src/cloudflare.ts maps the /projects/ URL onto those files.
+  "main": "src/cloudflare.ts",
+  "assets": { "directory": "./dist", "binding": "ASSETS", "run_worker_first": true },
+  "routes": [{ "pattern": "aasimsani.net/projects/pottery-rib-maker*", "zone_name": "aasimsani.net" }],
+  // The workers.dev address stays on so that aasimsani.net can fall back to it.
+  "workers_dev": true
+}
