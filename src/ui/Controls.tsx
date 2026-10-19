@@ -29,7 +29,7 @@ function PotEditor({ s, set, onSave, isSaved, onDelete, selected, onSelect, onBe
           <button className="secondary small" onClick={onSave}>Save to my shapes</button>
           {isSaved && <button className="secondary small" onClick={onDelete}>Delete</button>}
         </div>
-        <p className="hint">Draw the pot on the rib drawing, or type exact numbers here. They are the fired pot's, from the rim down to the base.</p>
+        <p className="hint">Draw the pot on the rib drawing, or type exact numbers here. They are the pot as you throw it, wet, from the rim down to the base.</p>
         <table className="points">
           <thead><tr><th scope="col">Point</th><th scope="col">Height</th><th scope="col">Ø</th><th scope="col">Corner</th><th><span className="visually-hidden">Remove</span></th></tr></thead>
           <tbody>
@@ -76,8 +76,9 @@ function PotEditor({ s, set, onSave, isSaved, onDelete, selected, onSelect, onBe
         <CheckField label="Keep proportions" value={keep} onChange={setKeep} />
         <NumberField label="Clay shrinkage" unit="%" value={s.shrink} min={0} max={25} step={0.5} onChange={(v) => set('shrink', v)} />
         <p className="hint">
-          The rib is cut for the wet pot, {s.shrink > 0 ? `${round1(100 / (1 - s.shrink / 100) - 100)}% bigger than the fired size` : 'at exactly these measurements'}.
-          Most stoneware shrinks 10–14% from wet to fired. To find your clay's number, mark a 100 mm line on a wet slab and measure it after the glaze firing.
+          Shrinkage doesn't change the rib. It sets the dry and fired numbers on the scale.
+          {s.shrink > 0 && ` This pot throws to ${round1(height)} mm and comes out of the kiln at ${round1(height * (1 - s.shrink / 100))} mm.`}
+          {' '}Most stoneware shrinks 10–14% from wet to fired. To find your clay's number, mark a 100 mm line on a wet slab and measure it after the glaze firing.
         </p>
       </Section>
     </>
@@ -123,7 +124,7 @@ export function Controls(props: EditorProps) {
         <label>More marks at <input type="text" value={s.extraMarks} placeholder="e.g. 30, 65" onChange={(e) => set('extraMarks', e.target.value)} /></label>
         <NumberField label="Marks stand up" unit="mm" value={s.emboss} min={0} max={2} step={0.2} onChange={(v) => set('emboss', v)} />
         <p className="hint">
-          A long line marks the rim when the rib reaches above it. To add more lines, enter fired heights in mm, the same as the pot measurements,
+          A long line marks the rim when the rib reaches above it. To add more lines, enter wet heights in mm, the same as the pot measurements,
           such as where a handle goes or where the wall turns. Print with the marks facing up. To print the marks in a second color, add a filament change at the layer where they start.
         </p>
       </Section>

@@ -75,10 +75,10 @@ export function Preview({ s, rib, tris, print, plate, edit, onStl, onAddToPlate,
               <button className="secondary small" onClick={edit.onStartOver} title="Start from a plain cylinder at this size">Start over</button>
             </div>
           </div>
-          <div ref={svgHost}><RibView rib={rib} shrink={s.shrink} label={label} edit={edit} /></div>
+          <div ref={svgHost}><RibView rib={rib} shrink={s.shrink} dryShrink={s.scale && s.scaleNumbers === 'wet-dry-fired' ? s.dryShrink : undefined} label={label} edit={edit} /></div>
           <p className={`hint draw-hint${edit.notice ? ' caution' : ''}`} role="status">
             {edit.notice ? edit.notice : sel
-              ? <>Point {edit.selected! + 1} of {edit.profile.length}: <b>{sel.z} mm</b> up, <b>Ø {sel.d} mm</b>{sel.sharp ? ', corner' : ''} (fired). Arrow keys nudge it, and Shift moves 5 mm.</>
+              ? <>Point {edit.selected! + 1} of {edit.profile.length}: <b>{sel.z} mm</b> up, <b>Ø {sel.d} mm</b>{sel.sharp ? ', corner' : ''}, as thrown. Arrow keys nudge it, and Shift moves 5 mm.</>
               : <>Drag a point to reshape the pot. Drag a ＋ to add a point, or double-click anywhere. Select a point to make it a corner or delete it.</>}
           </p>
           {ok && (

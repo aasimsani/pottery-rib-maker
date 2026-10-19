@@ -48,12 +48,13 @@ export function buildRib(s: Settings): Rib {
   const err = profileError(s.profile);
   if (err) return { ...empty, checks: [{ id: 'profile', level: 'error', message: `${err} Check the pot measurements.` }] };
 
-  const k = 1 / (1 - s.shrink / 100);
-  const pot = sampleProfile(s.profile).map((p) => ({ r: p.r * k, z: p.z * k }));
+  // The measurements are the pot as you throw it, so the rib is that size. Shrinkage only sets the dry
+  // and fired numbers on the scale.
+  const pot = sampleProfile(s.profile);
   // The rib pulls away from the spinning pot sideways, which it can't do where the wall folds back down.
   const fold = foldsAt(pot);
   // The drawing still shows the pot, so you can drag the points apart again.
-  if (fold > 0) return { ...empty, pot, checks: [{ id: 'fold', level: 'error', message: `The wall folds back on itself near ${(pot[fold].z * (1 - s.shrink / 100)).toFixed(0)} mm, so the rib couldn't pull away from the clay. Move the points there further apart, or make one a corner.` }] };
+  if (fold > 0) return { ...empty, pot, checks: [{ id: 'fold', level: 'error', message: `The wall folds back on itself near ${pot[fold].z.toFixed(0)} mm, so the rib couldn't pull away from the clay. Move the points there further apart, or make one a corner.` }] };
   const rmin = Math.min(...pot.map((p) => p.r)), maxLeft = Math.max(...pot.map((p) => p.r)) - rmin;
   const rim = pot[pot.length - 1].z, top = rim + s.above;
   const W = s.mirror ? 2 * maxLeft + s.body : maxLeft + s.body;
@@ -76,48 +77,54 @@ export function buildRib(s: Settings): Rib {
   // Height scale. The ticks follow the back edge like a ruler of wet height. Each long tick gets a row
   // of numbers in columns: its wet height, then the dry and fired heights that the same clay shrinks to.
   const { minor, major, unit } = { mm: { minor: 5, major: 10, unit: 1 }, cm: { minor: 5, major: 10, unit: 10 }, in: { minor: 6.35, major: 25.4, unit: 25.4 } }[s.units];
-  const factors = { none: [], wet: [1], 'wet-fired': [1, 1 / k], 'wet-dry-fired': [1, 1 - s.dryShrink / 100, 1 / k] }[s.scale ? s.scaleNumbers : 'none'];
+  const fired = 1 - s.shrink / 100, dry = 1 - s.dryShrink / 100;
+  const factors = { none: [], wet: [1], 'wet-fired': [1, fired], 'wet-dry-fired': [1, dry, fired] }[s.scale ? s.scaleNumbers : 'none'];
   // mm read as whole numbers. cm and inches keep one decimal, because 4.4 and 4 are 4 mm apart.
   const fmt = (v: number) => (s.units === 'mm' ? String(Math.round(v)) : String(Math.round(v * 10) / 10));
+  const lineYs = [...s.extraMarks.split(/[,;\s]+/).map(Number).filter((v) => v > 0), ...(s.above > 0 && s.rimLine ? [rim] : [])]
+    .filter((y) => y < top - 1).sort((a, b) => a - b);
   const majors: number[] = [];
   for (let i = 1; i * major <= rim + 1e-9; i++) majors.push(i * major);
-  const rows = new Map(majors.map((v) => [v, factors.map((f) => fmt((v * f) / unit))]));
+  // Line marks get numbers too, so the rim line reads the rim's own wet, dry, and fired height.
+  const textFor = (y: number) => factors.map((f) => fmt((y * f) / unit));
+  const texts = [...majors, ...lineYs].map(textFor);
   // The wet number is the ruler, so it prints larger. The dry and fired numbers print at 80% of its size.
   const digitH = Math.min([6, 6, 4.5, 4.5][factors.length], Math.max(3, major / 2));
   const colH = factors.map((_, c) => (c ? Math.max(3, digitH * 0.8) : digitH));
-  const colW = factors.map((_, c) => Math.max(...[...rows.values()].map((r) => textWidth(r[c], colH[c]))));
-  const COL_GAP = 3.5;
-  const labelW = factors.length ? colW.reduce((a, b) => a + b, 0) + COL_GAP * (factors.length - 1) + 1.5 : 0;
+  const colW = factors.map((_, c) => Math.max(...texts.map((r) => textWidth(r[c], colH[c]))));
+  const COL_GAP = 3.5, LINE_LEN = 12;
+  const labelW = factors.length ? colW.reduce((a, b) => a + b, 0) + COL_GAP * (factors.length - 1) : 0;
   const marks: Mark[] = [];
   // bar() is a mark that runs in from the back edge, cut short where it would reach the working edge.
   const bar = (y: number, len: number, w: number): Rect | null => {
     const x1 = rightIn(y - w / 2, y + w / 2) - INSET, x0 = Math.max(x1 - len, leftIn(y - w / 2, y + w / 2) + 2);
-    return x1 - x0 >= 1 && y - w / 2 > INSET ? [x0, y - w / 2, x1, y + w / 2] : null;
+    return x1 - x0 >= 1 && y - w / 2 > INSET && y + w / 2 < top - INSET ? [x0, y - w / 2, x1, y + w / 2] : null;
   };
-  const lineLen = 8 + labelW + 4;
-  // Extra marks are fired heights, like the pot measurements, so they grow onto the wet rib.
-  const lineYs = [...s.extraMarks.split(/[,;\s]+/).map(Number).filter((v) => v > 0).map((v) => v * k), ...(s.above > 0 && s.rimLine ? [rim] : [])]
-    .filter((y) => y < top - 1).sort((a, b) => a - b);
-  for (const y of lineYs) { const r = bar(y, lineLen, 1.2); if (r) marks.push({ kind: 'line', y, rects: [r] }); }
   let skipped = 0;
+  // label() puts a row of numbers left of the marks. Every row ends the same distance in from the back
+  // edge, past the longest mark, so each column right-aligns at the same x and the rows read like a table.
+  const label = (y: number) => {
+    if (!factors.length) return;
+    const y0 = y - digitH / 2, y1 = y + digitH / 2, x1 = rightIn(y0, y1) - INSET - LINE_LEN - 1.5;
+    if (!(y0 > INSET && y1 < top - INSET && x1 - labelW > leftIn(y0, y1) + 1.5)) { skipped++; return; }
+    const text = textFor(y);
+    let right = x1 - labelW;
+    const groups = text.map((tx, c) => { right += colW[c] + (c ? COL_GAP : 0); return sevenSeg(tx, right - textWidth(tx, colH[c]), y, colH[c]); });
+    marks.push({ kind: 'label', y, rects: groups.flat(), text, groups });
+  };
+  for (const y of lineYs) {
+    const r = bar(y, LINE_LEN, 1.2);
+    if (r) { marks.push({ kind: 'line', y, rects: [r] }); label(y); }
+  }
   if (s.scale) {
     for (let i = 1; i * minor <= rim + 1e-9; i++) {
-      const v = i * minor, y = v, isMajor = Math.abs(v / major - Math.round(v / major)) < 1e-9;
+      const y = i * minor, isMajor = Math.abs(y / major - Math.round(y / major)) < 1e-9;
       if (lineYs.some((l) => Math.abs(l - y) < 1.5)) continue;
       const tick = bar(y, isMajor ? 8 : 4, STROKE);
       if (!tick) continue;
       marks.push({ kind: isMajor ? 'major' : 'minor', y, rects: [tick] });
-      if (!isMajor || !factors.length) continue;
-      const text = rows.get(majors.find((m) => Math.abs(m - v) < 1e-9)!)!, w = labelW - 1.5, x1 = tick[0] - 1.5;
-      const y0 = y - digitH / 2, y1 = y + digitH / 2;
-      // A number beside a line mark is left off quietly, because the line already marks that height.
-      if (lineYs.some((l) => l + 0.6 > y0 - 0.4 && l - 0.6 < y1 + 0.4)) continue;
-      if (y0 > INSET && y1 < top - INSET && x1 - w > leftIn(y0, y1) + 1.5 && x1 < rightIn(y0, y1) - INSET) {
-        // Each column is right-aligned at the same x on every row.
-        let right = x1 - w;
-        const groups = text.map((t, c) => { right += colW[c] + (c ? COL_GAP : 0); return sevenSeg(t, right - textWidth(t, colH[c]), y, colH[c]); });
-        marks.push({ kind: 'label', y, rects: groups.flat(), text, groups });
-      } else skipped++;
+      // A tick right beside a line keeps quiet, because the line's own numbers already give that height.
+      if (isMajor && !lineYs.some((l) => Math.abs(l - y) < digitH + 1)) label(y);
     }
   }
   if (skipped) checks.push({ id: 'labels', level: 'note', message: `${skipped} number${skipped > 1 ? 's' : ''} had no room and ${skipped > 1 ? 'were' : 'was'} left off.` });

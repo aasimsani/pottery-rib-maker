@@ -7,7 +7,7 @@ export type Shape = Pick<Settings, 'name' | 'profile' | 'body' | 'above' | 'mirr
 const zigzag = (height: number, d: number, depth: number, pitch: number) =>
   Array.from({ length: Math.floor(height / (pitch / 2)) + 1 }, (_, i) => ({ z: (i * pitch) / 2, d: d + (i % 2 ? depth * 2 : 0), sharp: true }));
 
-// Pot profiles are the finished size. The rib grows by the clay shrinkage on top of these.
+// Pot profiles are the size you throw them, wet. Shrinkage only changes the dry and fired numbers.
 // The "set" shapes follow the outlines of the five ribs in the MakerWorld Ceramic Rib Tool Set (model 1963257).
 export const PRESETS: Shape[] = [
   { group: 'pots', name: 'Rounded-base mug', body: 60, above: 10, mirror: false,

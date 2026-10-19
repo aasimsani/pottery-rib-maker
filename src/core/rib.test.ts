@@ -27,15 +27,22 @@ test('the working edge is the pot, so the rib meets the clay along the whole pro
   }
 });
 
-test('shrinkage grows the rib, so the pot comes out of the kiln at the size you entered', () => {
+test('the rib is the pot you throw, so the height you enter is the rim mark on the rib', () => {
   const rib = buildRib({ ...mug, shrink: 12 });
-  expect(rib.rim).toBeCloseTo(90 / 0.88, 6);
-  expect(Math.max(...rib.pot.map((p) => p.r))).toBeCloseTo(40 / 0.88, 6);
+  expect(rib.rim).toBe(90);
+  expect(Math.max(...rib.pot.map((p) => p.r))).toBe(40);
+});
+
+test('throwing to 100 mm reads 94 dry and 88 fired, with 6% drying and 12% total shrinkage', () => {
+  const rib = buildRib({ ...mug, profile: [{ z: 0, d: 80 }, { z: 100, d: 80 }], shrink: 12, dryShrink: 6, units: 'mm', scaleNumbers: 'wet-dry-fired' });
+  expect(rib.marks.find((m) => m.kind === 'label' && m.y === 100)?.text).toEqual(['100', '94', '88']);
 });
 
 test('ticks mark every 10 mm of wet height, like a ruler held to the thrown pot', () => {
   const rib = buildRib({ ...mug, shrink: 12, units: 'mm' });
-  expect(rib.marks.filter((m) => m.kind === 'major').map((m) => m.y)).toEqual([10, 20, 30, 40, 50, 60, 70, 80, 90, 100]);
+  // The 90 mm tick is the rim, where the rim line and its numbers take its place.
+  expect(rib.marks.filter((m) => m.kind === 'major').map((m) => m.y)).toEqual([10, 20, 30, 40, 50, 60, 70, 80]);
+  expect(rib.marks.filter((m) => m.kind === 'line').map((m) => m.y)).toEqual([90]);
 });
 
 test('each long tick reads its wet, dry, and fired height, left to right', () => {
@@ -67,9 +74,9 @@ test('turning the scale off leaves a plain rib, with the rim line kept unless th
   expect(buildRib({ ...mug, scale: false, rimLine: false }).marks).toEqual([]);
 });
 
-test('extra marks are fired heights, like the pot measurements, so they land higher on the wet rib', () => {
+test('extra marks sit at the wet height you enter, like the ticks', () => {
   const rib = buildRib({ ...mug, shrink: 12, extraMarks: '35' });
-  expect(rib.marks.find((m) => m.kind === 'line')!.y).toBeCloseTo(35 / 0.88, 6);
+  expect(rib.marks.find((m) => m.kind === 'line')!.y).toBe(35);
 });
 
 test('inch ticks fall every quarter inch', () => {
