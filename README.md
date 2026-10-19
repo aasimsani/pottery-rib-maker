@@ -26,7 +26,7 @@ To host the app yourself, run `npm run build` and put the `dist/` folder on any 
 
 To host the app on Cloudflare Workers, run `npx wrangler login` once. Then run `npm run deploy`, which builds the app and publishes it. The file `wrangler.jsonc` configures Cloudflare to serve the build as static assets at `aasimsani.net/projects/pottery-rib-maker`. If you deploy a fork, replace `account_id` and `routes` in that file with your own.
 
-The workflow `.github/workflows/ci.yml` runs the tests and the build on every push. The workflow `.github/workflows/deploy.yml` publishes to Cloudflare only when you start it from the **Actions** tab. It needs a Cloudflare API token from the **Edit Cloudflare Workers** template, saved as the repository secret `CLOUDFLARE_API_TOKEN`.
+The workflow `.github/workflows/ci.yml` runs the tests and the build on every pull request. The workflow `.github/workflows/deploy.yml` deploys every push to `main` after the tests and the build pass. You can also start it from the **Actions** tab. It needs a Cloudflare API token from the **Edit Cloudflare Workers** template, saved as the repository secret `CLOUDFLARE_API_TOKEN`.
 
 ## Make a rib
 

@@ -1,8 +1,9 @@
 name: Deploy
 
-# Deploys run only when someone starts this workflow from the Actions tab, so a push never publishes.
-# To deploy on every push to main, add `push: { branches: [main] }` under `on`.
+# Every push to main deploys after the tests and the build pass. The Actions tab can also start a deploy by hand.
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 # A newer run cancels a deploy that has not finished, so an older build never lands last.

@@ -1,8 +1,7 @@
 name: CI
 
+# Pushes to main run the same steps in deploy.yml, so this workflow covers pull requests only.
 on:
-  push:
-    branches: [main]
   pull_request:
 
 jobs:
