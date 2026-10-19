@@ -33,9 +33,24 @@ test('the rib is the pot you throw, so the height you enter is the rim mark on t
   expect(Math.max(...rib.pot.map((p) => p.r))).toBe(40);
 });
 
-test('throwing to 100 mm reads 94 dry and 88 fired, with 6% drying and 12% total shrinkage', () => {
-  const rib = buildRib({ ...mug, profile: [{ z: 0, d: 80 }, { z: 100, d: 80 }], shrink: 12, dryShrink: 6, units: 'mm', scaleNumbers: 'wet-dry-fired' });
-  expect(rib.marks.find((m) => m.kind === 'label' && m.y === 100)?.text).toEqual(['100', '94', '88']);
+// labelAt() finds the number printed in one column of the scale: 0 is wet, then dry, then fired.
+const labelAt = (rib: Rib, col: number, text: string) => rib.marks.find((m) => m.kind === 'label' && m.col === col && m.text?.[0] === text);
+const tall = { profile: [{ z: 0, d: 80 }, { z: 100, d: 80 }], shrink: 12, dryShrink: 6, units: 'mm' as const };
+
+test('throwing to 100 mm puts 94 at 94 mm and 88 at 88 mm, so each number sits at the height it names', () => {
+  const rib = buildRib({ ...mug, ...tall, scaleNumbers: 'wet-dry-fired' });
+  expect(labelAt(rib, 0, '100')?.y).toBe(100);
+  expect(labelAt(rib, 1, '94')?.y).toBeCloseTo(94, 6);
+  expect(labelAt(rib, 2, '88')?.y).toBeCloseTo(88, 6);
+});
+
+test('a sloped line joins each wet height to the dry and fired heights it shrinks to', () => {
+  const rib = buildRib({ ...mug, ...tall, scaleNumbers: 'wet-dry-fired' });
+  const links = rib.marks.filter((m) => m.kind === 'link' && m.y === 100);
+  // Each link runs from one column's number down to the next column's tick.
+  expect(links.map((m) => m.to!.map((v) => +v.toFixed(3)))).toEqual([[100, 94], [94, 88]]);
+  const two = buildRib({ ...mug, ...tall, scaleNumbers: 'wet-fired' });
+  expect(two.marks.filter((m) => m.kind === 'link' && m.y === 100).map((m) => m.to)).toEqual([[100, 88]]);
 });
 
 test('ticks mark every 10 mm of wet height, like a ruler held to the thrown pot', () => {
@@ -45,26 +60,18 @@ test('ticks mark every 10 mm of wet height, like a ruler held to the thrown pot'
   expect(rib.marks.filter((m) => m.kind === 'line').map((m) => m.y)).toEqual([90]);
 });
 
-test('each long tick reads its wet, dry, and fired height, left to right', () => {
-  const rib = buildRib({ ...mug, shrink: 12, dryShrink: 6, units: 'mm', scaleNumbers: 'wet-dry-fired' });
-  expect(rib.marks.find((m) => m.kind === 'label' && m.y === 50)?.text).toEqual(['50', '47', '44']);
-  const cm = buildRib({ ...mug, shrink: 12, dryShrink: 6, units: 'cm', scaleNumbers: 'wet-dry-fired' });
-  expect(cm.marks.find((m) => m.kind === 'label' && m.y === 50)?.text).toEqual(['5', '4.7', '4.4']);
-  const two = buildRib({ ...mug, shrink: 12, units: 'cm', scaleNumbers: 'wet-fired' });
-  expect(two.marks.find((m) => m.kind === 'label' && m.y === 50)?.text).toEqual(['5', '4.4']);
-});
-
-test('the number columns line up and never overlap, so they read like a table', () => {
-  const rib = buildRib({ ...mug, shrink: 12, dryShrink: 6, units: 'cm', scaleNumbers: 'wet-dry-fired', body: 60 });
-  const labels = rib.marks.filter((m) => m.kind === 'label');
-  expect(labels.length).toBeGreaterThan(3);
-  for (let c = 0; c < 3; c++) {
-    // Each column's right edge is the same on every row.
-    const rights = labels.map((m) => Math.max(...m.groups![c].map((r) => r[2])));
-    for (const r of rights) expect(r).toBeCloseTo(rights[0], 6);
-  }
-  for (const m of labels) for (let c = 0; c < 2; c++) {
-    expect(Math.max(...m.groups![c].map((r) => r[2]))).toBeLessThan(Math.min(...m.groups![c + 1].map((r) => r[0])));
+test('each column lines up, and no two numbers in a column touch', () => {
+  for (const scaleNumbers of ['wet-fired', 'wet-dry-fired'] as const) for (const units of ['mm', 'cm', 'in'] as const) {
+    const rib = buildRib({ ...mug, ...tall, units, scaleNumbers, body: 80 });
+    for (let c = 0; c < (scaleNumbers === 'wet-fired' ? 2 : 3); c++) {
+      const col = rib.marks.filter((m) => m.kind === 'label' && m.col === c);
+      expect(col.length, `${units} column ${c}`).toBeGreaterThan(2);
+      const rights = col.map((m) => Math.max(...m.rects.map((r) => r[2])));
+      for (const r of rights) expect(r).toBeCloseTo(rights[0], 6);
+      const ys = col.map((m) => m.y).sort((a, b) => a - b);
+      const h = Math.max(...col[0].rects.map((r) => r[3])) - Math.min(...col[0].rects.map((r) => r[1]));
+      for (let i = 1; i < ys.length; i++) expect(ys[i] - ys[i - 1], `${units} column ${c}`).toBeGreaterThan(h);
+    }
   }
 });
 
@@ -93,7 +100,8 @@ test('the rim gets its own long mark, and extra marks land at the heights you li
 test('every mark sits on the rib and clear of the finger hole', () => {
   for (const shape of PRESETS) {
     const rib = buildRib(settings(shape));
-    for (const m of rib.marks) for (const r of m.rects) for (const [x, y] of [[r[0], r[1]], [r[2], r[1]], [r[0], r[3]], [r[2], r[3]]]) {
+    const corners = (m: Rib['marks'][number]) => [...m.rects.flatMap((r) => [[r[0], r[1]], [r[2], r[1]], [r[0], r[3]], [r[2], r[3]]]), ...(m.polys ?? []).flat()];
+    for (const m of rib.marks) for (const [x, y] of corners(m)) {
       expect(inside(rib, x, y), `${shape.name} mark at ${m.y}`).toBe(true);
       if (rib.hole) expect(Math.hypot(x - rib.hole.x, y - rib.hole.y)).toBeGreaterThan(rib.hole.r);
     }

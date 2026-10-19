@@ -35,7 +35,7 @@ export interface Settings {
 export const DEFAULTS: Settings = {
   name: 'Rounded-base mug', profile: [{ z: 0, d: 62 }, { z: 4, d: 72 }, { z: 14, d: 80 }, { z: 90, d: 80 }],
   shrink: 12, body: 60, above: 10, mirror: false, thick: 4.5, hole: true, holeD: 18,
-  units: 'cm', scale: true, scaleNumbers: 'wet-dry-fired', dryShrink: 6, rimLine: true, extraMarks: '', emboss: 0.6,
+  units: 'cm', scale: true, scaleNumbers: 'wet-fired', dryShrink: 6, rimLine: true, extraMarks: '', emboss: 0.6,
   ...GUARDS,
   bedW: 256, bedD: 256,
 };

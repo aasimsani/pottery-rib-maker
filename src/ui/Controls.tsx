@@ -114,9 +114,9 @@ export function Controls(props: EditorProps) {
             )}
             <p className="hint">
               The ticks count the wet height up from the wheel head, like a ruler held to the thrown pot.
-              {s.scaleNumbers === 'wet-dry-fired' && ` Each long tick reads wet, dry, and fired height, left to right. The dry column is the pot at bone dry, ${s.dryShrink}% smaller than wet. The fired column is ${s.shrink}% smaller.`}
-              {s.scaleNumbers === 'wet-fired' && ` Each long tick reads wet height, then fired height, ${s.shrink}% smaller.`}
-              {s.scaleNumbers !== 'none' && s.scaleNumbers !== 'wet' && ' More columns need a wider rib. If numbers go missing, raise Narrowest width or show fewer columns.'}
+              {s.scaleNumbers === 'wet-dry-fired' && ` The dry and fired columns put each number at the height it names. A sloped line runs from each wet height down to its bone-dry height, ${s.dryShrink}% lower, and on to its fired height, ${s.shrink}% lower.`}
+              {s.scaleNumbers === 'wet-fired' && ` The fired column puts each number at the height it names. A sloped line runs from each wet height down to its fired height, ${s.shrink}% lower.`}
+              {s.scaleNumbers !== 'none' && s.scaleNumbers !== 'wet' && ' Each column needs about 15 mm more rib. If numbers or the finger hole go missing, raise Narrowest width or show fewer columns.'}
             </p>
           </>
         )}

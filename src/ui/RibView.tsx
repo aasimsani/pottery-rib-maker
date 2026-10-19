@@ -69,10 +69,14 @@ export function RibView({ rib, shrink, dryShrink, mini, label, edit }: Props) {
     ...(shrink > 0 ? [{ name: 'fired', f: fired }] : []),
   ];
   const outline = (f: number) => 'M' + [...pot.map((p) => `${p.r * f},${p.z * f}`), ...[...pot].reverse().map((p) => `${-p.r * f},${p.z * f}`)].join(' L');
-  // The top row of numbers gets a header over each column. The headers are on screen only, not printed.
-  const rows = rib.marks.filter((m) => m.kind === 'label' && m.groups);
-  const topRow = rows.reduce<(typeof rows)[number] | undefined>((a, m) => (!a || m.y > a.y ? m : a), undefined);
-  const headers = topRow && topRow.groups!.length > 1 ? ['wet', ...stages.map((st) => st.name)].slice(0, topRow.groups!.length) : [];
+  // Each column of numbers gets a header over its top number. The headers are on screen only, not printed.
+  const names = ['wet', ...stages.map((st) => st.name)];
+  const heads = names.map((name, c) => {
+    const col = rib.marks.filter((m) => m.kind === 'label' && m.col === c);
+    const topMark = col.reduce<(typeof col)[number] | undefined>((a, m) => (!a || m.y > a.y ? m : a), undefined);
+    return topMark && { name, x: (Math.min(...topMark.rects.map((r) => r[0])) + Math.max(...topMark.rects.map((r) => r[2]))) / 2, y: Math.max(...topMark.rects.map((r) => r[3])) };
+  }).filter((h) => !!h);
+  const headers = heads.length > 1 ? heads : [];
   const hr = (x1 - x0) / 75; // handle radius, about 6 px whatever the pot's size
 
   // focusHandle() moves keyboard focus to handle i once React has drawn it, so the arrow keys,
@@ -108,6 +112,7 @@ export function RibView({ rib, shrink, dryShrink, mini, label, edit }: Props) {
         {ribPath && <path className="rib" d={ribPath} fillRule="evenodd" />}
         {!mini && stages.map((st) => <path key={st.name} className={`stage ${st.name}`} d={outline(st.f)} />)}
         {rib.marks.map((m, i) => m.rects.map(([a, b, c, d], j) => <rect key={`${i}-${j}`} className="mark" x={a + rmin} y={b} width={c - a} height={d - b} />))}
+        {rib.marks.map((m, i) => m.polys?.map((p, j) => <polygon key={`p${i}-${j}`} className="mark" points={p.map(([x, y]) => `${x + rmin},${y}`).join(' ')} />))}
       </g>
       {!mini && (
         <g className="dims stages">
@@ -115,10 +120,7 @@ export function RibView({ rib, shrink, dryShrink, mini, label, edit }: Props) {
           {stages.map((st) => (
             <text key={st.name} className={st.name} x={-pot[pot.length - 1].r * st.f - 2} y={Y(rim * st.f) + 1.5} textAnchor="end">{st.name} {f1(rim * st.f)}</text>
           ))}
-          {topRow && headers.map((h, c) => {
-            const g = topRow.groups![c], gx = (Math.min(...g.map((r) => r[0])) + Math.max(...g.map((r) => r[2]))) / 2;
-            return <text key={h} className="col-head" x={gx + rmin} y={Y(Math.max(...g.map((r) => r[3]))) - 2} textAnchor="middle">{h}</text>;
-          })}
+          {headers.map((h) => <text key={h.name} className="col-head" x={h.x + rmin} y={Y(h.y) - 2} textAnchor="middle">{h.name}</text>)}
         </g>
       )}
       {!mini && rib.outline.length > 0 && (
