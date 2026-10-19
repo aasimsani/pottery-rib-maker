@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } fr
 import type { Rib } from '../core/rib';
 import type { ProfilePoint } from '../core/profile';
 
-/** What the drawing needs to edit the pot. Heights and diameters are the fired pot's, in mm. */
+/** What the drawing needs to edit the pot. Heights and diameters are the thrown pot's, in mm. */
 export interface EditProps {
   profile: ProfilePoint[];
   selected: number | null;
@@ -17,31 +17,35 @@ export interface EditProps {
   onCorner: (i: number) => void;
 }
 
-interface Props { rib: Rib; shrink: number; mini?: boolean; label?: string; edit?: EditProps }
+interface Props {
+  rib: Rib; shrink: number; mini?: boolean; label?: string; edit?: EditProps;
+  /** The drying shrinkage, in %. With it set, the drawing outlines the bone-dry pot too. */
+  dryShrink?: number;
+}
 
 const f1 = (v: number) => v.toFixed(0);
 
 // RibView draws the rib flat, as it prints, beside a cross-section of the thrown pot it shapes.
 // The drawing is in mm with y pointing up, so the group flips the SVG's downward y. With edit set,
 // the measured points become handles that you drag, and a ＋ between two points adds one there.
-export function RibView({ rib, shrink, mini, label, edit }: Props) {
+export function RibView({ rib, shrink, dryShrink, mini, label, edit }: Props) {
   const svg = useRef<SVGSVGElement>(null);
   const [drag, setDrag] = useState<{ i: number; box: string } | null>(null);
   const editRef = useRef(edit);
   editRef.current = edit;
 
   const { pot, rmin, height: top, rim } = rib;
-  const k = 1 / (1 - shrink / 100), z0 = edit?.profile[0].z ?? 0;
-  // toFired() turns a pointer position into the fired pot's height and diameter.
-  const toFired = (clientX: number, clientY: number) => {
+  const z0 = edit?.profile[0].z ?? 0;
+  // toPot() turns a pointer position into the thrown pot's height and diameter.
+  const toPot = (clientX: number, clientY: number) => {
     const m = svg.current!.getScreenCTM()!.inverse(), p = new DOMPoint(clientX, clientY).matrixTransform(m);
-    return { z: (top - p.y) / k + z0, d: (2 * Math.abs(p.x)) / k };
+    return { z: top - p.y + z0, d: 2 * Math.abs(p.x) };
   };
 
   // While a drag runs, the window follows the pointer, because the handle under it can re-render.
   useEffect(() => {
     if (!drag) return;
-    const move = (e: globalThis.PointerEvent) => { const { z, d } = toFired(e.clientX, e.clientY); editRef.current?.onMove(drag.i, z, d); };
+    const move = (e: globalThis.PointerEvent) => { const { z, d } = toPot(e.clientX, e.clientY); editRef.current?.onMove(drag.i, z, d); };
     const up = () => setDrag(null);
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
@@ -51,7 +55,7 @@ export function RibView({ rib, shrink, mini, label, edit }: Props) {
 
   if (!pot.length) return <div className="rib-svg empty">No rib to draw yet.</div>;
   const rmax = Math.max(...pot.map((p) => p.r)), width = rib.outline.length ? rib.width : rmax - rmin, pad = mini ? 4 : 10;
-  const x0 = -rmax - pad, x1 = rmin + width + pad + (mini ? 0 : 26), y0 = -pad - (mini ? 0 : 8), y1 = top + pad;
+  const x0 = -rmax - pad - (mini ? 0 : 16), x1 = rmin + width + pad + (mini ? 0 : 26), y0 = -pad - (mini ? 0 : 8), y1 = top + pad;
   const Y = (y: number) => top - y; // the flip for anything that must not be mirrored
   // The view box holds still during a drag, so the drawing doesn't rescale under the pointer.
   const box = drag?.box ?? `${x0} ${Y(y1)} ${x1 - x0} ${y1 - y0}`;
@@ -59,6 +63,20 @@ export function RibView({ rib, shrink, mini, label, edit }: Props) {
   const ribPath = rib.outline.length ? 'M' + rib.outline.map(([x, y]) => `${x + rmin},${y}`).join(' L') + ' Z'
     + (rib.hole ? ` M${rib.hole.x + rmin + rib.hole.r},${rib.hole.y} a${rib.hole.r},${rib.hole.r} 0 1 0 ${-2 * rib.hole.r},0 a${rib.hole.r},${rib.hole.r} 0 1 0 ${2 * rib.hole.r},0 Z` : '') : '';
   const fired = 1 - shrink / 100, backX = rmin + rib.width + 4;
+  // Each stage the pot passes through, as its outline shrinks about the centre of the base.
+  const stages = [
+    ...(dryShrink ? [{ name: 'dry', f: 1 - dryShrink / 100 }] : []),
+    ...(shrink > 0 ? [{ name: 'fired', f: fired }] : []),
+  ];
+  const outline = (f: number) => 'M' + [...pot.map((p) => `${p.r * f},${p.z * f}`), ...[...pot].reverse().map((p) => `${-p.r * f},${p.z * f}`)].join(' L');
+  // Each column of numbers gets a header over its top number. The headers are on screen only, not printed.
+  const names = ['wet', ...stages.map((st) => st.name)];
+  const heads = names.map((name, c) => {
+    const col = rib.marks.filter((m) => m.kind === 'label' && m.col === c);
+    const topMark = col.reduce<(typeof col)[number] | undefined>((a, m) => (!a || m.y > a.y ? m : a), undefined);
+    return topMark && { name, x: (Math.min(...topMark.rects.map((r) => r[0])) + Math.max(...topMark.rects.map((r) => r[2]))) / 2, y: Math.max(...topMark.rects.map((r) => r[3])) };
+  }).filter((h) => !!h);
+  const headers = heads.length > 1 ? heads : [];
   const hr = (x1 - x0) / 75; // handle radius, about 6 px whatever the pot's size
 
   // focusHandle() moves keyboard focus to handle i once React has drawn it, so the arrow keys,
@@ -83,7 +101,7 @@ export function RibView({ rib, shrink, mini, label, edit }: Props) {
       onPointerDown={edit && ((e) => { if (e.target === e.currentTarget || (e.target as Element).classList.contains('backdrop')) edit.onSelect(null); })}
       onDoubleClick={edit && ((e) => {
         if ((e.target as Element).closest('.handles')) return;
-        const { z, d } = toFired(e.clientX, e.clientY);
+        const { z, d } = toPot(e.clientX, e.clientY);
         edit.onBegin();
         const i = edit.onInsert(z, d);
         if (i !== null) { edit.onSelect(i); focusHandle(i); }
@@ -92,15 +110,26 @@ export function RibView({ rib, shrink, mini, label, edit }: Props) {
         {!mini && <line className="wheel" x1={x0} x2={x1} y1={0} y2={0} />}
         <path className="pot" d={potPath} />
         {ribPath && <path className="rib" d={ribPath} fillRule="evenodd" />}
+        {!mini && stages.map((st) => <path key={st.name} className={`stage ${st.name}`} d={outline(st.f)} />)}
         {rib.marks.map((m, i) => m.rects.map(([a, b, c, d], j) => <rect key={`${i}-${j}`} className="mark" x={a + rmin} y={b} width={c - a} height={d - b} />))}
+        {rib.marks.map((m, i) => m.polys?.map((p, j) => <polygon key={`p${i}-${j}`} className="mark" points={p.map(([x, y]) => `${x + rmin},${y}`).join(' ')} />))}
       </g>
+      {!mini && (
+        <g className="dims stages">
+          <text x={-pot[pot.length - 1].r - 2} y={Y(rim) + 1.5} textAnchor="end">wet {f1(rim)}</text>
+          {stages.map((st) => (
+            <text key={st.name} className={st.name} x={-pot[pot.length - 1].r * st.f - 2} y={Y(rim * st.f) + 1.5} textAnchor="end">{st.name} {f1(rim * st.f)}</text>
+          ))}
+          {headers.map((h) => <text key={h.name} className="col-head" x={h.x + rmin} y={Y(h.y) - 2} textAnchor="middle">{h.name}</text>)}
+        </g>
+      )}
       {!mini && rib.outline.length > 0 && (
         <g className="dims">
           <line x1={backX} x2={backX + 6} y1={Y(rim)} y2={Y(rim)} />
           <line x1={backX + 3} x2={backX + 3} y1={Y(rim)} y2={Y(0)} />
           <line x1={backX} x2={backX + 6} y1={Y(0)} y2={Y(0)} />
-          <text x={backX + 6} y={Y(rim / 2) - 2}>{f1(rim)} mm</text>
-          {shrink > 0 && <text x={backX + 6} y={Y(rim / 2) + 4} className="sub">fired {f1(rim * fired)}</text>}
+          <text x={backX + 6} y={Y(rim / 2) - 2}>throw to</text>
+          <text x={backX + 6} y={Y(rim / 2) + 4}>{f1(rim)} mm</text>
           <text x={0} y={Y(0) + 7} textAnchor="middle">Ø {f1(2 * pot[0].r)}</text>
           <text x={rmin + rib.width / 2} y={Y(0) + 7} textAnchor="middle">{f1(rib.width)} mm</text>
         </g>
@@ -109,19 +138,19 @@ export function RibView({ rib, shrink, mini, label, edit }: Props) {
         <g className="handles">
           {edit.profile.slice(0, -1).map((q, i) => {
             // A ＋ sits on the curve halfway up each gap that has room for one more point.
-            const next = edit.profile[i + 1], mid = ((q.z + next.z) / 2 - z0) * k;
+            const next = edit.profile[i + 1], mid = (q.z + next.z) / 2 - z0;
             if (next.z - q.z < 4 || drag) return null;
             const s = pot.reduce((a, b) => (Math.abs(b.z - mid) < Math.abs(a.z - mid) ? b : a));
             return (
               <g key={`add-${i}`} className="add" transform={`translate(${s.r} ${Y(s.z)})`} role="button" tabIndex={-1} aria-label="Add a point here"
-                onPointerDown={(e) => { edit.onBegin(); const n = edit.onInsert(s.z / k + z0, (2 * s.r) / k); if (n !== null) begin(n, e); }}>
+                onPointerDown={(e) => { edit.onBegin(); const n = edit.onInsert(s.z + z0, 2 * s.r); if (n !== null) begin(n, e); }}>
                 <circle r={hr * 1.1} />
                 <path d={`M${-hr * 0.6},0 H${hr * 0.6} M0,${-hr * 0.6} V${hr * 0.6}`} />
               </g>
             );
           })}
           {edit.profile.map((q, i) => {
-            const x = (q.d / 2) * k, y = Y((q.z - z0) * k), on = edit.selected === i;
+            const x = q.d / 2, y = Y(q.z - z0), on = edit.selected === i;
             const name = i === 0 ? 'Base' : i === edit.profile.length - 1 ? 'Rim' : `Point ${i}`;
             return (
               <g key={i} className={`handle${on ? ' on' : ''}`} transform={`translate(${x} ${y})`} tabIndex={0} role="button"

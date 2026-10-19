@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { buildRib, type Rib } from './rib';
+import { buildRib, sevenSeg, textWidth, type Rib } from './rib';
 import { ribSTL, ribTris } from './mesh';
 import { stlSize } from './plate';
 import { checkStl } from '../test/stl';
@@ -7,7 +7,7 @@ import { DEFAULTS, type Settings } from '../state';
 import { PRESETS } from '../presets';
 
 const settings = (over: Partial<Settings> = {}): Settings => ({ ...DEFAULTS, ...over });
-const mug = settings({ profile: [{ z: 0, d: 80 }, { z: 90, d: 80 }], shrink: 0, above: 10, body: 45 });
+const mug = settings({ profile: [{ z: 0, d: 80 }, { z: 90, d: 80 }], shrink: 0, above: 10, body: 60 });
 
 // inside() is an even-odd point-in-polygon test on the rib's outline.
 function inside(rib: Rib, x: number, y: number): boolean {
@@ -27,21 +27,63 @@ test('the working edge is the pot, so the rib meets the clay along the whole pro
   }
 });
 
-test('shrinkage grows the rib, so the pot comes out of the kiln at the size you entered', () => {
+test('the rib is the pot you throw, so the height you enter is the rim mark on the rib', () => {
   const rib = buildRib({ ...mug, shrink: 12 });
-  expect(rib.rim).toBeCloseTo(90 / 0.88, 6);
-  expect(Math.max(...rib.pot.map((p) => p.r))).toBeCloseTo(40 / 0.88, 6);
+  expect(rib.rim).toBe(90);
+  expect(Math.max(...rib.pot.map((p) => p.r))).toBe(40);
 });
 
-test('ticks mark every 10 mm of thrown height, or of fired height when the labels say fired', () => {
-  const thrown = buildRib({ ...mug, shrink: 12, units: 'mm', labelAs: 'thrown' });
-  expect(thrown.marks.filter((m) => m.kind === 'major').map((m) => m.y)).toEqual([10, 20, 30, 40, 50, 60, 70, 80, 90, 100]);
-  const fired = buildRib({ ...mug, shrink: 12, units: 'mm', labelAs: 'fired' });
-  const ys = fired.marks.filter((m) => m.kind === 'major').map((m) => m.y);
-  // The fired 90 mm tick lands on the rim, where the rim line takes its place.
-  expect(ys).toHaveLength(8);
-  expect(ys[0]).toBeCloseTo(10 / 0.88, 6);
-  expect(fired.marks.find((m) => m.kind === 'line')!.y).toBeCloseTo(fired.rim, 6);
+// labelAt() finds the number printed in one column of the scale: 0 is wet, then dry, then fired.
+const labelAt = (rib: Rib, col: number, text: string) => rib.marks.find((m) => m.kind === 'label' && m.col === col && m.text?.[0] === text);
+const tall = { profile: [{ z: 0, d: 80 }, { z: 100, d: 80 }], shrink: 12, dryShrink: 6, units: 'mm' as const };
+
+test('throwing to 100 mm puts 94 at 94 mm and 88 at 88 mm, so each number sits at the height it names', () => {
+  const rib = buildRib({ ...mug, ...tall, scaleNumbers: 'wet-dry-fired' });
+  expect(labelAt(rib, 0, '100')?.y).toBe(100);
+  expect(labelAt(rib, 1, '94')?.y).toBeCloseTo(94, 6);
+  expect(labelAt(rib, 2, '88')?.y).toBeCloseTo(88, 6);
+});
+
+test('a sloped line joins each wet height to the dry and fired heights it shrinks to', () => {
+  const rib = buildRib({ ...mug, ...tall, scaleNumbers: 'wet-dry-fired' });
+  const links = rib.marks.filter((m) => m.kind === 'link' && m.y === 100);
+  // Each link runs from one column's number down to the next column's tick.
+  expect(links.map((m) => m.to!.map((v) => +v.toFixed(3)))).toEqual([[100, 94], [94, 88]]);
+  const two = buildRib({ ...mug, ...tall, scaleNumbers: 'wet-fired' });
+  expect(two.marks.filter((m) => m.kind === 'link' && m.y === 100).map((m) => m.to)).toEqual([[100, 88]]);
+});
+
+test('ticks mark every 10 mm of wet height, like a ruler held to the thrown pot', () => {
+  const rib = buildRib({ ...mug, shrink: 12, units: 'mm' });
+  // The 90 mm tick is the rim, where the rim line and its numbers take its place.
+  expect(rib.marks.filter((m) => m.kind === 'major').map((m) => m.y)).toEqual([10, 20, 30, 40, 50, 60, 70, 80]);
+  expect(rib.marks.filter((m) => m.kind === 'line').map((m) => m.y)).toEqual([90]);
+});
+
+test('each column lines up, and no two numbers in a column touch', () => {
+  for (const scaleNumbers of ['wet-fired', 'wet-dry-fired'] as const) for (const units of ['mm', 'cm', 'in'] as const) {
+    const rib = buildRib({ ...mug, ...tall, units, scaleNumbers, body: 80 });
+    for (let c = 0; c < (scaleNumbers === 'wet-fired' ? 2 : 3); c++) {
+      const col = rib.marks.filter((m) => m.kind === 'label' && m.col === c);
+      expect(col.length, `${units} column ${c}`).toBeGreaterThan(2);
+      const rights = col.map((m) => Math.max(...m.rects.map((r) => r[2])));
+      for (const r of rights) expect(r).toBeCloseTo(rights[0], 6);
+      const ys = col.map((m) => m.y).sort((a, b) => a - b);
+      const h = Math.max(...col[0].rects.map((r) => r[3])) - Math.min(...col[0].rects.map((r) => r[1]));
+      for (let i = 1; i < ys.length; i++) expect(ys[i] - ys[i - 1], `${units} column ${c}`).toBeGreaterThan(h);
+    }
+  }
+});
+
+test('turning the scale off leaves a plain rib, with the rim line kept unless that is off too', () => {
+  const off = buildRib({ ...mug, scale: false });
+  expect(off.marks.map((m) => m.kind)).toEqual(['line']);
+  expect(buildRib({ ...mug, scale: false, rimLine: false }).marks).toEqual([]);
+});
+
+test('extra marks sit at the wet height you enter, like the ticks', () => {
+  const rib = buildRib({ ...mug, shrink: 12, extraMarks: '35' });
+  expect(rib.marks.find((m) => m.kind === 'line')!.y).toBe(35);
 });
 
 test('inch ticks fall every quarter inch', () => {
@@ -58,7 +100,8 @@ test('the rim gets its own long mark, and extra marks land at the heights you li
 test('every mark sits on the rib and clear of the finger hole', () => {
   for (const shape of PRESETS) {
     const rib = buildRib(settings(shape));
-    for (const m of rib.marks) for (const r of m.rects) for (const [x, y] of [[r[0], r[1]], [r[2], r[1]], [r[0], r[3]], [r[2], r[3]]]) {
+    const corners = (m: Rib['marks'][number]) => [...m.rects.flatMap((r) => [[r[0], r[1]], [r[2], r[1]], [r[0], r[3]], [r[2], r[3]]]), ...(m.polys ?? []).flat()];
+    for (const m of rib.marks) for (const [x, y] of corners(m)) {
       expect(inside(rib, x, y), `${shape.name} mark at ${m.y}`).toBe(true);
       if (rib.hole) expect(Math.hypot(x - rib.hole.x, y - rib.hole.y)).toBeGreaterThan(rib.hole.r);
     }
@@ -108,4 +151,9 @@ test('a number never runs into a line mark, so the rim line stays readable', () 
     const lines = rib.marks.filter((m) => m.kind === 'line').flatMap((m) => m.rects);
     for (const m of rib.marks.filter((x) => x.kind === 'label')) for (const r of m.rects) for (const l of lines) expect(overlap(r, l), `${shape.name} label at ${m.y}`).toBe(false);
   }
+});
+
+test('a decimal point prints as one small square after its digit', () => {
+  expect(sevenSeg('4.7', 0, 0, 4)).toHaveLength(4 + 1 + 3);
+  expect(textWidth('4.7', 4)).toBeLessThan(textWidth('477', 4));
 });

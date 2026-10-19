@@ -258,3 +258,9 @@ table.points .u input { padding-right: 30px; min-height: 28px; }
 .rib-svg .add:hover { opacity: 1; }
 .rib-svg .add circle { fill: var(--panel); stroke: var(--accent); stroke-width: .5; stroke-dasharray: 1 .8; }
 .rib-svg .add path { stroke: var(--accent); stroke-width: .7; }
+/* The dry and fired outlines sit inside the thrown pot, so you can see what each number on the scale means. */
+.rib-svg .stage { fill: none; stroke: var(--muted); stroke-width: .45; stroke-dasharray: 2 1.4; }
+.rib-svg .stage.fired { stroke: var(--caution); }
+.rib-svg .dims.stages text { font-size: 3.6px; fill: var(--muted); }
+.rib-svg .dims.stages text.fired { fill: var(--caution); }
+.rib-svg .dims.stages text.col-head { font-size: 3.4px; font-weight: 600; fill: var(--mark); }

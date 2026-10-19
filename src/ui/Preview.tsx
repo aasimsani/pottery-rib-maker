@@ -56,7 +56,9 @@ export function Preview({ s, rib, tris, print, plate, edit, onStl, onAddToPlate,
     : mode === 'fired' ? `The pot after firing, ${s.shrink}% smaller than it was thrown.` : 'Drag to rotate, scroll to zoom.';
 
   const errors = rib.checks.filter((c) => c.level === 'error').length, warns = rib.checks.filter((c) => c.level === 'warn').length;
-  const tickInfo = s.ticks ? { mm: 'ticks every 5 mm, numbered in mm', cm: 'ticks every 5 mm, numbered in cm', in: 'ticks every ¼", numbered in inches' }[s.units] : 'no ticks';
+  const columns = { none: '', wet: 'wet', 'wet-fired': 'wet / fired', 'wet-dry-fired': 'wet / dry / fired' }[s.scaleNumbers];
+  const tickInfo = !s.scale ? 'no height scale'
+    : `ticks every ${s.units === 'in' ? '¼"' : '5 mm'}${columns ? `, numbered ${columns} in ${{ mm: 'mm', cm: 'cm', in: 'inches' }[s.units]}` : ''}`;
 
   return (
     <section className="panel preview" aria-labelledby="preview-title">
@@ -73,10 +75,10 @@ export function Preview({ s, rib, tris, print, plate, edit, onStl, onAddToPlate,
               <button className="secondary small" onClick={edit.onStartOver} title="Start from a plain cylinder at this size">Start over</button>
             </div>
           </div>
-          <div ref={svgHost}><RibView rib={rib} shrink={s.shrink} label={label} edit={edit} /></div>
+          <div ref={svgHost}><RibView rib={rib} shrink={s.shrink} dryShrink={s.scale && s.scaleNumbers === 'wet-dry-fired' ? s.dryShrink : undefined} label={label} edit={edit} /></div>
           <p className={`hint draw-hint${edit.notice ? ' caution' : ''}`} role="status">
             {edit.notice ? edit.notice : sel
-              ? <>Point {edit.selected! + 1} of {edit.profile.length}: <b>{sel.z} mm</b> up, <b>Ø {sel.d} mm</b>{sel.sharp ? ', corner' : ''} (fired). Arrow keys nudge it, and Shift moves 5 mm.</>
+              ? <>Point {edit.selected! + 1} of {edit.profile.length}: <b>{sel.z} mm</b> up, <b>Ø {sel.d} mm</b>{sel.sharp ? ', corner' : ''}, as thrown. Arrow keys nudge it, and Shift moves 5 mm.</>
               : <>Drag a point to reshape the pot. Drag a ＋ to add a point, or double-click anywhere. Select a point to make it a corner or delete it.</>}
           </p>
           {ok && (
@@ -84,6 +86,7 @@ export function Preview({ s, rib, tris, print, plate, edit, onStl, onAddToPlate,
               <span><i style={{ background: 'var(--plastic)' }} />rib</span>
               <span><i style={{ background: 'var(--mark)' }} />raised marks</span>
               <span><i style={{ background: 'var(--clay)' }} />the thrown pot</span>
+              {s.scale && columns.includes('/') && <span>numbers read {columns}</span>}
             </div>
           )}
         </div>

@@ -5,8 +5,8 @@ Design profile ribs for the potter's wheel, and 3D print them. You describe the 
 ![The app showing a rounded-base mug, its rib with a centimeter scale, the rib on the wheel in 3D, and a passing print check](docs/screenshot.png)
 
 - **The rib throws the pot you drew.** The working edge follows the pot's wall from the base to the rim. Hold the rib to the clay while the wheel turns, and the wall takes that shape.
-- **The rib has a height scale.** Ticks and numbers run up the back edge in cm, mm, or inches. A long line marks the rim, and you can add lines at any height, such as where a handle goes.
-- **The rib allows for shrinkage.** You enter the size of the fired pot and your clay's shrinkage. The app makes the rib bigger by that amount, so the pot leaves the kiln at the size you entered.
+- **The rib can have a height scale.** Ticks run up the back edge in cm, mm, or inches and count the wet height. The scale can also work as a conversion chart. A sloped line runs from each wet height down to the dry and fired heights it shrinks to, and each number sits at the height it names. A long line marks the rim, and you can add lines at any height, such as where a handle goes.
+- **The rib shows what shrinkage does.** You draw the pot at the size you throw it. Your clay's shrinkage sets the dry and fired numbers on the scale, and the drawing outlines the bone-dry and fired pot inside the thrown one.
 - **You see the pot before you print.** A 3D view shows the rib against the thrown pot on the wheel, and the fired pot alone. The print plate view shows the STL file on the bed of your printer.
 
 ## Run it
@@ -31,12 +31,12 @@ The workflow `.github/workflows/ci.yml` runs the tests and the build on every pu
 ## Make a rib
 
 1. **Pick a shape.** Click a shape in the **Rib library**. **Pots** holds profile ribs for mugs, pots, and bowls. **Your printed set** holds the five ribs of the [Ceramic Rib Tool Set](https://makerworld.com/en/models/1963257-ceramic-rib-tool-set) on MakerWorld.
-2. **Draw the pot.** Drag the points on the rib drawing to reshape the pot's wall. To add a point, drag a **＋** between two points, or double-click anywhere on the drawing. Select a point to make it a **corner**, which gives a crisp edge such as the carination of an angled pot, or to delete it. **Start over** gives you a plain cylinder at the same size, and **Undo** (⌘Z or Ctrl+Z) steps back. To type exact numbers, use the table under **Pot**. The numbers are the height and the outside Ø of the fired pot.
+2. **Draw the pot.** Drag the points on the rib drawing to reshape the pot's wall. To add a point, drag a **＋** between two points, or double-click anywhere on the drawing. Select a point to make it a **corner**, which gives a crisp edge such as the carination of an angled pot, or to delete it. **Start over** gives you a plain cylinder at the same size, and **Undo** (⌘Z or Ctrl+Z) steps back. To type exact numbers, use the table under **Pot**. The numbers are the height and the outside Ø of the pot as you throw it, wet.
    - The arrow keys move the selected point by the snap step, and Shift moves it 5 mm. Delete removes it, and C makes it a corner.
    - The **Drawing limits** stop shapes that cannot work. Each point stays at least 2 mm above the point below it, and no point gets narrower than Ø 20 mm. A point also stops where the wall would fold back on itself, because the rib could not pull away from that wall. You can change the limits and the 0.5 mm snap step.
-3. **Set the size.** **Height** and **Widest Ø** resize the whole pot. With **Keep proportions** on, the two change together. Enter your clay's **shrinkage**. Most stoneware shrinks 10–14% from wet to fired.
+3. **Set the size.** **Height** and **Widest Ø** resize the whole pot. With **Keep proportions** on, the two change together. Enter your clay's **shrinkage**. Most stoneware shrinks 10–14% from wet to fired. Shrinkage does not change the rib. It sets the dry and fired numbers and the **Fired pot** view.
 4. **Shape the rib.** **Narrowest width** sets how much plastic is behind the working edge. **Above the rim** makes the rib taller than the pot, so the rim line sits on the rib. **Both long edges throw the pot** makes the back edge a second working edge.
-5. **Set the height scale.** Pick the units and whether the numbers show the wet height or the fired height. Enter heights in **More marks at** to add lines.
+5. **Set the height scale.** Clear **Put a height scale on the rib** for a plain rib. Otherwise, pick the units and the numbers. With **wet and fired**, a sloped line runs from each wet height down to its fired height, so a pot thrown to the 9 cm line reads 7.9 at 7.9 cm. **Wet, dry, and fired** adds a bone-dry column between them, which needs a rib about 75 mm wide. Enter your clay's **Drying shrinkage**, which is part of the total shrinkage. To add lines, enter wet heights in mm in **More marks at**. The rim line and each extra line carry their own wet, dry, and fired numbers.
 6. **Check the rib.** Fix every error that the **Print check** marks.
 7. **Download the STL file**, and then slice it. To print several ribs together, click **Add to plate** for each one. Then click **Download plate (.3mf)**, which saves one file with every rib placed on the bed.
 
