@@ -15,10 +15,14 @@ export interface Settings {
   hole: boolean; holeD: number;
   // Height scale
   units: 'mm' | 'cm' | 'in';
-  /** 'thrown' numbers the rib like a ruler. 'fired' numbers the heights the pot keeps after firing. */
-  labelAs: 'thrown' | 'fired';
-  ticks: boolean; numbers: boolean;
-  /** More heights to mark, in mm, such as where a handle goes. */
+  /** Puts the ticks and numbers on the rib. The ticks always count wet height, like a ruler. */
+  scale: boolean;
+  /** Which heights each long tick's numbers give, left to right. */
+  scaleNumbers: 'none' | 'wet' | 'wet-fired' | 'wet-dry-fired';
+  /** How much the clay shrinks from wet to bone dry, in %. It is part of the total shrinkage. */
+  dryShrink: number;
+  rimLine: boolean;
+  /** More fired heights to mark, in mm, such as where a handle goes. */
   extraMarks: string;
   /** How far the marks stand up from the rib, in mm. */
   emboss: number;
@@ -30,8 +34,8 @@ export interface Settings {
 
 export const DEFAULTS: Settings = {
   name: 'Rounded-base mug', profile: [{ z: 0, d: 62 }, { z: 4, d: 72 }, { z: 14, d: 80 }, { z: 90, d: 80 }],
-  shrink: 12, body: 45, above: 10, mirror: false, thick: 4.5, hole: true, holeD: 18,
-  units: 'cm', labelAs: 'thrown', ticks: true, numbers: true, extraMarks: '', emboss: 0.6,
+  shrink: 12, body: 60, above: 10, mirror: false, thick: 4.5, hole: true, holeD: 18,
+  units: 'cm', scale: true, scaleNumbers: 'wet-dry-fired', dryShrink: 6, rimLine: true, extraMarks: '', emboss: 0.6,
   ...GUARDS,
   bedW: 256, bedD: 256,
 };

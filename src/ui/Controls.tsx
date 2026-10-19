@@ -101,14 +101,29 @@ export function Controls(props: EditorProps) {
       </Section>
 
       <Section title="Height scale">
-        <SelectField label="Units" value={s.units} onChange={(v) => set('units', v)} options={[['cm', 'cm (ticks every 5 mm)'], ['mm', 'mm (ticks every 5 mm)'], ['in', 'inches (ticks every ¼")']]} />
-        <SelectField label="Numbers show" value={s.labelAs} onChange={(v) => set('labelAs', v)} options={[['thrown', 'wet height, like a ruler'], ['fired', 'fired height']]} />
-        <CheckField label="Ticks" value={s.ticks} onChange={(v) => set('ticks', v)} />
-        <CheckField label="Numbers" value={s.numbers} onChange={(v) => set('numbers', v)} />
+        <CheckField label="Put a height scale on the rib" value={s.scale} onChange={(v) => set('scale', v)} />
+        {s.scale && (
+          <>
+            <SelectField label="Units" value={s.units} onChange={(v) => set('units', v)} options={[['cm', 'cm (ticks every 5 mm)'], ['mm', 'mm (ticks every 5 mm)'], ['in', 'inches (ticks every ¼")']]} />
+            <SelectField label="Numbers show" value={s.scaleNumbers} onChange={(v) => set('scaleNumbers', v)} options={[
+              ['wet-dry-fired', 'wet, dry, and fired'], ['wet-fired', 'wet and fired'], ['wet', 'wet only'], ['none', 'no numbers'],
+            ]} />
+            {s.scaleNumbers === 'wet-dry-fired' && (
+              <NumberField label="Drying shrinkage" unit="%" value={s.dryShrink} min={0} max={s.shrink} step={0.5} onChange={(v) => set('dryShrink', v)} />
+            )}
+            <p className="hint">
+              The ticks count the wet height up from the wheel head, like a ruler held to the thrown pot.
+              {s.scaleNumbers === 'wet-dry-fired' && ` Each long tick reads wet, dry, and fired height, left to right. The dry column is the pot at bone dry, ${s.dryShrink}% smaller than wet. The fired column is ${s.shrink}% smaller.`}
+              {s.scaleNumbers === 'wet-fired' && ` Each long tick reads wet height, then fired height, ${s.shrink}% smaller.`}
+              {s.scaleNumbers !== 'none' && s.scaleNumbers !== 'wet' && ' More columns need a wider rib. If numbers go missing, raise Narrowest width or show fewer columns.'}
+            </p>
+          </>
+        )}
+        <CheckField label="Rim line" value={s.rimLine} onChange={(v) => set('rimLine', v)} />
         <label>More marks at <input type="text" value={s.extraMarks} placeholder="e.g. 30, 65" onChange={(e) => set('extraMarks', e.target.value)} /></label>
         <NumberField label="Marks stand up" unit="mm" value={s.emboss} min={0} max={2} step={0.2} onChange={(v) => set('emboss', v)} />
         <p className="hint">
-          The scale counts up from the wheel head along the back edge. A long line marks the rim. To add more lines, enter heights in mm of {s.labelAs === 'fired' ? 'fired' : 'wet'} height,
+          A long line marks the rim when the rib reaches above it. To add more lines, enter fired heights in mm, the same as the pot measurements,
           such as where a handle goes or where the wall turns. Print with the marks facing up. To print the marks in a second color, add a filament change at the layer where they start.
         </p>
       </Section>
