@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ProfilePoint } from './core/profile';
+import { GUARDS } from './core/edit';
 
 export interface Settings {
   /** The pot the rib throws, after firing, from the base up. */
@@ -21,6 +22,8 @@ export interface Settings {
   extraMarks: string;
   /** How far the marks stand up from the rib, in mm. */
   emboss: number;
+  /** Drawing limits: the least height between points, the smallest Ø, and the snap step, in mm. */
+  minGap: number; minD: number; snap: number;
   // Printer (Bambu Lab P2S defaults)
   bedW: number; bedD: number;
 }
@@ -29,6 +32,7 @@ export const DEFAULTS: Settings = {
   name: 'Rounded-base mug', profile: [{ z: 0, d: 62 }, { z: 4, d: 72 }, { z: 14, d: 80 }, { z: 90, d: 80 }],
   shrink: 12, body: 45, above: 10, mirror: false, thick: 4.5, hole: true, holeD: 18,
   units: 'cm', labelAs: 'thrown', ticks: true, numbers: true, extraMarks: '', emboss: 0.6,
+  ...GUARDS,
   bedW: 256, bedD: 256,
 };
 

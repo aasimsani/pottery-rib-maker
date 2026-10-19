@@ -8,6 +8,8 @@ export function Section({ title, children }: { title: string; children: ReactNod
 interface NumberProps {
   label: string; unit: string; value: number; onChange: (v: number) => void;
   min?: number; max?: number; step?: number;
+  /** Drops the visible label and the − and + buttons, for a field in a table row. */
+  compact?: boolean;
 }
 
 /**
@@ -16,7 +18,7 @@ interface NumberProps {
  * is never snapped to the minimum. The arrow keys step the value: Shift moves 10 steps, and Alt
  * moves a tenth of a step. Escape puts back the value from before you started typing.
  */
-export function NumberField({ label, unit, value, onChange, min, max, step = 1 }: NumberProps) {
+export function NumberField({ label, unit, value, onChange, min, max, step = 1, compact }: NumberProps) {
   const [draft, setDraft] = useState<string | null>(null);
   const shown = Number.isFinite(value) ? String(value) : '';
   const nudge = (count: number, fine = false) => { setDraft(null); onChange(stepBy(value, fine ? step / 10 : step, count, min, max)); };
@@ -32,22 +34,26 @@ export function NumberField({ label, unit, value, onChange, min, max, step = 1 }
     } else if (e.key === 'Enter') commit();
     else if (e.key === 'Escape' && draft !== null) { e.preventDefault(); setDraft(null); }
   };
+  const input = (
+    <span className="u" data-u={unit}>
+      <input type="text" inputMode="decimal" role="spinbutton" aria-label={label} aria-valuenow={value} aria-valuemin={min} aria-valuemax={max}
+        value={draft ?? shown}
+        onChange={(e) => {
+          setDraft(e.target.value);
+          // A value inside the limits applies as you type, so the preview follows along.
+          const v = parseNumber(e.target.value);
+          if (v !== null && v === clampTo(v, min, max)) onChange(v);
+        }}
+        onBlur={commit} onKeyDown={onKey} />
+    </span>
+  );
+  if (compact) return input;
   return (
     <label>
       {label}
       <span className="num">
         <button type="button" tabIndex={-1} aria-label={`Decrease ${label}`} disabled={min !== undefined && value <= min} onClick={() => nudge(-1)}>−</button>
-        <span className="u" data-u={unit}>
-          <input type="text" inputMode="decimal" role="spinbutton" aria-label={label} aria-valuenow={value} aria-valuemin={min} aria-valuemax={max}
-            value={draft ?? shown}
-            onChange={(e) => {
-              setDraft(e.target.value);
-              // A value inside the limits applies as you type, so the preview follows along.
-              const v = parseNumber(e.target.value);
-              if (v !== null && v === clampTo(v, min, max)) onChange(v);
-            }}
-            onBlur={commit} onKeyDown={onKey} />
-        </span>
+        {input}
         <button type="button" tabIndex={-1} aria-label={`Increase ${label}`} disabled={max !== undefined && value >= max} onClick={() => nudge(1)}>+</button>
       </span>
     </label>
