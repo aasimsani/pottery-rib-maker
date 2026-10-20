@@ -14,7 +14,7 @@ const TABS: { id: Tab; label: string; hint: string }[] = [
 const sameShape = (a: Shape, s: Settings) => a.name === s.name && JSON.stringify(a.profile) === JSON.stringify(s.profile);
 
 /** Lists the ribs you can start from. A click loads the shape and keeps your size and mark settings. */
-export function Library({ s, onPick, saved }: { s: Settings; onPick: (shape: Shape) => void; saved: Shape[] }) {
+export function Library({ s, onPick, saved, onPhoto }: { s: Settings; onPick: (shape: Shape) => void; saved: Shape[]; onPhoto: () => void }) {
   const [tab, setTab] = usePersistent<Tab>('library.tab', 'pots');
   const info = TABS.find((t) => t.id === tab)!;
   const shapes = tab === 'saved' ? saved : PRESETS.filter((p) => p.group === tab);
@@ -22,7 +22,10 @@ export function Library({ s, onPick, saved }: { s: Settings; onPick: (shape: Sha
   const ribs = useMemo(() => shapes.map((shape) => buildRib({ ...DEFAULTS, ...shape })), [shapes]);
   return (
     <section className="panel library" aria-labelledby="library-title">
-      <h2 id="library-title">Rib library</h2>
+      <div className="piece-head">
+        <h2 id="library-title">Rib library</h2>
+        <button className="secondary small" onClick={onPhoto}>From a photo</button>
+      </div>
       <div className="tabs" role="group" aria-label="Library">
         {TABS.map((t) => <button key={t.id} className={`tab ${t.id === tab ? 'on' : ''}`} aria-pressed={t.id === tab} onClick={() => setTab(t.id)}>{t.label}</button>)}
       </div>
