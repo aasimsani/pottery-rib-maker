@@ -264,3 +264,19 @@ table.points .u input { padding-right: 30px; min-height: 28px; }
 .rib-svg .dims.stages text { font-size: 3.6px; fill: var(--muted); }
 .rib-svg .dims.stages text.fired { fill: var(--caution); }
 .rib-svg .dims.stages text.col-head { font-size: 3.4px; font-weight: 600; fill: var(--mark); }
+
+/* Rib from a photo: the step list, and the guide's example pictures. */
+:root { --ex-bg: #f1ede6; --ex-pot: #8a5a40; --ex-inside: #4a2e20; --ex-busy: #c9a98a; --ex-hand: #d9a77f; --ex-dark: #3a2a22; }
+.steps { display: flex; gap: 4px 14px; list-style: none; margin: 0; padding: 0; flex: 1; flex-wrap: wrap; }
+.steps li button.link { color: var(--muted); }
+.steps li.on button.link { color: var(--accent); font-weight: 700; }
+.examples { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; margin: 10px 0 4px; }
+.examples figure { margin: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; display: grid; }
+.examples figure svg { display: block; width: 100%; height: auto; }
+.examples figcaption { display: grid; gap: 2px; padding: 8px 10px 10px; font-size: 12.5px; color: var(--muted); }
+.examples figcaption b { color: var(--ink); font-size: 13px; }
+.examples figure.good { border-color: var(--accent); }
+.examples figure.good figcaption b span:first-child { color: var(--accent); }
+.examples figure.bad figcaption b span:first-child { color: var(--error); }
+.modal-body.photo .search input { flex: 1; }
+.photo-side label:has(.num) { grid-template-columns: 1fr 156px; }

@@ -11,6 +11,7 @@ import { Controls } from './ui/Controls';
 import { Preview } from './ui/Preview';
 import { PlatePanel } from './ui/PlatePanel';
 import { Library } from './ui/Library';
+import { PhotoRib } from './ui/PhotoRib';
 
 const download = (blob: Blob, name: string) => {
   const a = document.createElement('a');
@@ -81,6 +82,7 @@ export function App() {
   const tris = useMemo(() => (rib.outline.length ? ribTris(rib, s.thick, s.emboss) : new Float32Array()), [rib, s.thick, s.emboss]);
   const print = useMemo(() => exportSTL(s, rib), [s, rib]);
 
+  const [photoOpen, setPhotoOpen] = useState(false);
   const pick = ({ name, profile, body, above, mirror }: Shape) => { remember(); setSelected(null); setSaved((prev) => ({ ...prev, name, profile, body, above, mirror })); };
   const current: Shape = { group: 'pots', name: s.name, profile: s.profile, body: s.body, above: s.above, mirror: s.mirror };
   const onSvg = (svg: SVGSVGElement) => {
@@ -110,8 +112,12 @@ export function App() {
           <PlatePanel plate={plate} bedW={s.bedW} bedD={s.bedD} onRemove={(i) => setPlate((p) => p.filter((_, k) => k !== i))}
             onClear={() => setPlate([])} onDownload={(zip, name) => download(new Blob([zip as BlobPart], { type: 'model/3mf' }), name)} />
         </main>
-        <Library s={s} onPick={pick} saved={shapes} />
+        <Library s={s} onPick={pick} saved={shapes} onPhoto={() => setPhotoOpen(true)} />
       </div>
+      {photoOpen && (
+        <PhotoRib height={s.profile[s.profile.length - 1].z - s.profile[0].z} minGap={s.minGap} onClose={() => setPhotoOpen(false)}
+          onUse={({ name, profile }) => { remember(); setSelected(null); setSaved((prev) => ({ ...prev, name, profile })); setPhotoOpen(false); }} />
+      )}
     </>
   );
 }
