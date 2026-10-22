@@ -95,10 +95,12 @@ export function Controls(props: EditorProps) {
         <NumberField label="Narrowest width" unit="mm" value={s.body} min={3} max={150} step={1} onChange={(v) => set('body', v)} />
         <NumberField label="Above the rim" unit="mm" value={s.above} min={0} max={60} step={1} onChange={(v) => set('above', v)} />
         <NumberField label="Thickness" unit="mm" value={s.thick} min={1} max={8} step={0.1} onChange={(v) => set('thick', v)} />
+        <NumberField label="Edge bevel" unit="mm" value={s.bevelWidth} min={0} max={8} step={0.25} onChange={(v) => set('bevelWidth', v)} />
+        <NumberField label="Bevel angle" unit="°" value={s.bevelAngle} min={15} max={75} step={1} onChange={(v) => set('bevelAngle', v)} />
         <CheckField label="Both long edges throw the pot" value={s.mirror} onChange={(v) => set('mirror', v)} />
         <CheckField label="Finger hole" value={s.hole} onChange={(v) => set('hole', v)} />
         {s.hole && <NumberField label="Hole Ø" unit="mm" value={s.holeD} min={8} max={40} step={1} onChange={(v) => set('holeD', v)} />}
-        <p className="hint">Stand the rib on the wheel head or bat and hold its working edge to the clay. The flat bottom keeps it level, so the pot comes out the same every time.</p>
+        <p className="hint">Stand the rib on the wheel head or bat and hold its working edge to the clay. The flat bottom keeps it level, so the pot comes out the same every time. The edge bevel slopes up from a straight land that meets the clay, like the MakerWorld ribs. A wider or steeper bevel makes a thinner edge. Set the bevel to 0 for a square edge.</p>
       </Section>
 
       <Section title="Height scale">

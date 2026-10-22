@@ -76,11 +76,13 @@ export function buildRib(s: Settings): Rib {
   const rightIn = (y0: number, y1: number) => span(y0, y1, (y) => edgeAt(rightEdge, y), Math.min);
   const narrowest = span(0, top, (y) => edgeAt(rightEdge, y) - edgeAt(leftEdge, y), Math.min);
   const checks: Check[] = [];
-  // The edge copies the MakerWorld Ceramic Rib Tool Set. A 0.55 mm round softens the foot, a straight
-  // land rises to 1.5 mm, and a bevel of about 39° runs up to the top face, 3.75 mm in on a 4.5 mm rib.
-  // The bevel stays narrow enough to leave a flat top where the rib is narrowest.
-  const land = Math.min(1.5, s.thick / 2), fillet = Math.min(0.55, land / 2);
-  const bevel = { fillet, land, run: Math.max(0, Math.min((s.thick - land) * 1.25, narrowest / 2 - 1)) };
+  // The edge copies the MakerWorld Ceramic Rib Tool Set by default. A 0.55 mm round softens the foot,
+  // a straight land meets the clay, and a 39° bevel runs up to the top face, 3.75 mm in. The bevel's
+  // width and angle set its height, and the land is the thickness left over, never less than 1 mm.
+  // The bevel also stays narrow enough to leave a flat top where the rib is narrowest.
+  const slope = Math.tan((Math.min(85, Math.max(5, s.bevelAngle)) * Math.PI) / 180), minLand = Math.min(1, s.thick / 2);
+  const run = Math.max(0, Math.min(s.bevelWidth, (s.thick - minLand) / slope, narrowest / 2 - 1)), land = s.thick - run * slope;
+  const bevel = { fillet: Math.min(0.55, land / 2), land, run };
   // Marks stop this far short of the rib's edge, so they sit on the flat top inside the bevel.
   const INSET = bevel.run + 0.8;
 
