@@ -113,6 +113,7 @@ export function App() {
               const files = print.parts?.map((p, i) => ({ stl: p.stl, name: `${print.name}_${i ? 'marks' : 'rib'}.stl` })) ?? [{ stl: print.stl, name: `${print.name}.stl` }];
               for (const f of files) download(new Blob([f.stl], { type: 'model/stl' }), f.name);
             }}
+            onSplitMarks={(v) => set('splitMarks', v)}
             on3mf={async () => {
               // The 3MF holds the rib alone, centred on the bed, with its parts when it has them.
               const zip = print && await plate3mf([{ ...print, name: s.name }], s.bedW, s.bedD);

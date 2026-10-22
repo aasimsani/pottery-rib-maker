@@ -123,13 +123,9 @@ export function Controls(props: EditorProps) {
         <CheckField label="Rim line" value={s.rimLine} onChange={(v) => set('rimLine', v)} />
         <label>More marks at <input type="text" value={s.extraMarks} placeholder="e.g. 30, 65" onChange={(e) => set('extraMarks', e.target.value)} /></label>
         <NumberField label="Marks stand up" unit="mm" value={s.emboss} min={0} max={2} step={0.2} onChange={(v) => set('emboss', v)} />
-        <CheckField label="Save the marks as a separate part" value={s.splitMarks} onChange={(v) => set('splitMarks', v)} />
         <p className="hint">
           A long line marks the rim when the rib reaches above it. To add more lines, enter wet heights in mm, the same as the pot measurements,
           such as where a handle goes or where the wall turns. Print with the marks facing up.
-          {s.splitMarks
-            ? ' The 3MF file opens in Bambu Studio as one object with two parts, Rib and Scale marks, so you can give the marks their own filament. The STL download is two files. Select both when you import them, and Bambu Studio loads them as one object.'
-            : ' To print the marks in a second color, save them as a separate part, or add a filament change at the layer where they start.'}
         </p>
       </Section>
 

@@ -6,6 +6,7 @@ import type { WheelMode } from './Wheel3D';
 import { RibView, type EditProps } from './RibView';
 import { useDialog } from './dialog';
 import { PLATE_GAP } from './PlatePanel';
+import { CheckField } from './fields';
 
 // three.js is about 600 kB, so the 3D views load after the rest of the page.
 const Wheel3D = lazy(() => import('./Wheel3D'));
@@ -19,12 +20,12 @@ interface Props {
   /** The rib the downloads save, or null when the rib doesn't fit the bed. */
   print: PlatePart | null;
   plate: PlatePart[];
-  onStl: () => void; on3mf: () => void; onAddToPlate: () => void; onSvg: (svg: SVGSVGElement) => void;
+  onStl: () => void; on3mf: () => void; onSplitMarks: (v: boolean) => void; onAddToPlate: () => void; onSvg: (svg: SVGSVGElement) => void;
 }
 
 const f0 = (v: number) => v.toFixed(0);
 
-export function Preview({ s, rib, tris, print, plate, edit, onStl, on3mf, onAddToPlate, onSvg }: Props) {
+export function Preview({ s, rib, tris, print, plate, edit, onStl, on3mf, onSplitMarks, onAddToPlate, onSvg }: Props) {
   const [mode, setMode] = useState<Mode>('wheel');
   const [expanded, setExpanded] = useState(false);
   const dialog = useRef<HTMLDivElement>(null), svgHost = useRef<HTMLDivElement>(null);
@@ -126,6 +127,12 @@ export function Preview({ s, rib, tris, print, plate, edit, onStl, on3mf, onAddT
           </li>
         ))}
       </ul>
+      <CheckField label="Save the marks as a separate part" value={s.splitMarks} onChange={onSplitMarks} />
+      <p className="hint">
+        {s.splitMarks
+          ? 'The 3MF file opens in Bambu Studio as one object with two parts, Rib and Scale marks, so you can give the marks their own filament. The STL download is two files. Select both when you import them, and Bambu Studio loads them as one object.'
+          : 'The rib and its marks download as one solid. To print the marks in a second color, add a filament change at the layer where they start.'}
+      </p>
       <div className="actions">
         <button onClick={on3mf} disabled={!print}>Download 3MF</button>
         <button className="secondary" onClick={onStl} disabled={!print}>{print?.parts ? 'Download STLs' : 'Download STL'}</button>

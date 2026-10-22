@@ -23,6 +23,8 @@ export interface Rib {
   /** The pot's narrowest radius. A point at radius r on the pot sits at x = r - rmin on the rib. */
   rmin: number;
   width: number; height: number; rim: number; narrowest: number;
+  /** The edge profile in mm: the round at the foot, the height of the straight land, and how far in the bevel reaches on the top face. */
+  bevel: { fillet: number; land: number; run: number };
   /** The rotation that fits the rib on the bed, in degrees, or null when it does not fit. */
   rot: number | null;
   checks: Check[];
@@ -31,7 +33,6 @@ export interface Rib {
 /** The fit check keeps this many mm clear of each bed edge. */
 export const BED_MARGIN = 3;
 const STROKE = 0.8; // two nozzle widths, the thinnest line that prints solid
-const INSET = 0.8; // marks stop this far short of the rib's edge
 
 // edgeAt() reads an edge's x at height y, between the edge points on either side of it.
 function edgeAt(edge: [number, number][], y: number): number {
@@ -46,7 +47,7 @@ function edgeAt(edge: [number, number][], y: number): number {
 // buildRib() turns the pot into the rib that throws it. The working edge is the thrown pot's outside,
 // and the rib runs from there to a straight back, or to a mirrored second working edge.
 export function buildRib(s: Settings): Rib {
-  const empty = { outline: [], hole: null, marks: [], pot: [], rmin: 0, width: 0, height: 0, rim: 0, narrowest: 0, rot: null };
+  const empty = { outline: [], hole: null, marks: [], pot: [], rmin: 0, width: 0, height: 0, rim: 0, narrowest: 0, bevel: { fillet: 0, land: 0, run: 0 }, rot: null };
   const err = profileError(s.profile);
   if (err) return { ...empty, checks: [{ id: 'profile', level: 'error', message: `${err} Check the pot measurements.` }] };
 
@@ -75,6 +76,13 @@ export function buildRib(s: Settings): Rib {
   const rightIn = (y0: number, y1: number) => span(y0, y1, (y) => edgeAt(rightEdge, y), Math.min);
   const narrowest = span(0, top, (y) => edgeAt(rightEdge, y) - edgeAt(leftEdge, y), Math.min);
   const checks: Check[] = [];
+  // The edge copies the MakerWorld Ceramic Rib Tool Set. A 0.55 mm round softens the foot, a straight
+  // land rises to 1.5 mm, and a bevel of about 39° runs up to the top face, 3.75 mm in on a 4.5 mm rib.
+  // The bevel stays narrow enough to leave a flat top where the rib is narrowest.
+  const land = Math.min(1.5, s.thick / 2), fillet = Math.min(0.55, land / 2);
+  const bevel = { fillet, land, run: Math.max(0, Math.min((s.thick - land) * 1.25, narrowest / 2 - 1)) };
+  // Marks stop this far short of the rib's edge, so they sit on the flat top inside the bevel.
+  const INSET = bevel.run + 0.8;
 
   // Height scale. The ticks follow the back edge like a ruler of wet height. With dry and fired numbers
   // on, the scale works like a conversion chart. Each column puts its numbers at the heights they name,
@@ -105,7 +113,9 @@ export function buildRib(s: Settings): Rib {
   const marks: Mark[] = [];
   // bar() is a mark that runs in from the back edge, cut short where it would reach the working edge.
   const bar = (y: number, len: number, w: number): Rect | null => {
-    const x1 = rightIn(y - w / 2, y + w / 2) - INSET, x0 = Math.max(x1 - len, leftIn(y - w / 2, y + w / 2) + 2);
+    // The edges are read INSET beyond the mark's ends too, so a sloping edge can't come closer than INSET.
+    const y0 = y - w / 2 - INSET, y1 = y + w / 2 + INSET;
+    const x1 = rightIn(y0, y1) - INSET, x0 = Math.max(x1 - len, leftIn(y0, y1) + INSET + 1.2);
     return x1 - x0 >= 1 && y - w / 2 > INSET && y + w / 2 < top - INSET ? [x0, y - w / 2, x1, y + w / 2] : null;
   };
   let skipped = 0;
@@ -115,9 +125,9 @@ export function buildRib(s: Settings): Rib {
     if (!factors.length) return;
     const items = factors.map((f, c) => {
       const y = h * f, y0 = y - colH[c] / 2, y1 = y + colH[c] / 2;
-      return { c, y, y0, y1, R: rightIn(y0, y1) - INSET, text: fmt(y / unit) };
+      return { c, y, y0, y1, R: rightIn(y0 - INSET, y1 + INSET) - INSET, text: fmt(y / unit) };
     });
-    if (!items.every(({ c, y0, y1, R }) => y0 > INSET && y1 < top - INSET && R - cols[c].num[1] > leftIn(y0, y1) + 1.5)) { skipped++; return; }
+    if (!items.every(({ c, y0, y1, R }) => y0 > INSET && y1 < top - INSET && R - cols[c].num[1] > leftIn(y0 - INSET, y1 + INSET) + INSET + 0.7)) { skipped++; return; }
     // A row that would crowd a number already in its column stays off quietly, because that number is
     // within a few mm of the same height. Lines go first, so the rim keeps its numbers.
     if (!items.every((it) => taken.every((tk) => tk.c !== it.c || it.y1 + 0.8 < tk.y0 || it.y0 - 0.8 > tk.y1))) return;
@@ -147,16 +157,17 @@ export function buildRib(s: Settings): Rib {
   if (skipped) checks.push({ id: 'labels', level: 'note', message: `${skipped} number${skipped > 1 ? 's' : ''} had no room and ${skipped > 1 ? 'were' : 'was'} left off.` });
 
   // The finger hole goes where the rib is widest, as near half height as it can, clear of every mark.
+  // It keeps 1.5 mm of flat top round it, inside the bevel, and never less than 3 mm of plastic.
   let hole: Rib['hole'] = null;
   if (s.hole) {
-    const R = s.holeD / 2;
+    const R = s.holeD / 2, clear = Math.max(3, bevel.run + 1.5);
     let best = -Infinity;
     for (let d = 0; d <= top / 2; d += 0.5) for (const y of [top / 2 - d, top / 2 + d]) {
-      if (y - R < 3 || y + R > top - 3) continue;
-      const y0 = y - R - 3, y1 = y + R + 3;
-      let hi = rightIn(y0, y1) - R - 3;
+      if (y - R < clear || y + R > top - clear) continue;
+      const y0 = y - R - clear, y1 = y + R + clear;
+      let hi = rightIn(y0, y1) - R - clear;
       for (const m of marks) for (const [mx0, my0, , my1] of [...m.rects, ...(m.polys ?? []).map(bounds)]) if (my1 > y0 && my0 < y1) hi = Math.min(hi, mx0 - R - 1.5);
-      const lo = leftIn(y0, y1) + R + 3, slack = hi - lo;
+      const lo = leftIn(y0, y1) + R + clear, slack = hi - lo;
       if (slack >= 0 && slack > best + 0.5) { best = slack; hole = { x: (lo + hi) / 2, y, r: R }; }
     }
     if (!hole) checks.push({ id: 'hole', level: 'warn', message: `The ${s.holeD} mm finger hole has no room. Make the rib wider, make the hole smaller, or turn it off.` });
@@ -166,7 +177,7 @@ export function buildRib(s: Settings): Rib {
   if (rot === null) checks.unshift({ id: 'bed', level: 'error', message: `The rib is ${W.toFixed(0)} × ${top.toFixed(0)} mm, which doesn't fit the ${s.bedW} × ${s.bedD} mm bed. Make the pot smaller, or use a printer with a bigger bed.` });
   if (narrowest < 10) checks.push({ id: 'narrow', level: 'warn', message: `The rib is only ${narrowest.toFixed(1)} mm wide at its narrowest, so it flexes there. Raise Narrowest width if you want it stiffer.` });
   if (s.thick < 2) checks.push({ id: 'thin', level: 'warn', message: `A ${s.thick} mm rib bends under the clay. Use 3 mm or more for a rib that holds its shape.` });
-  return { outline, hole, marks, pot, rmin, width: W, height: top, rim, narrowest, rot, checks };
+  return { outline, hole, marks, pot, rmin, width: W, height: top, rim, narrowest, bevel, rot, checks };
 }
 
 // slab() is a bar w mm wide from a to b, as a four-corner polygon wound anticlockwise.

@@ -20,6 +20,18 @@ function inside(rib: Rib, x: number, y: number): boolean {
   return c;
 }
 
+// edgeDist() is how far a point is from the rib's outline, in mm.
+function edgeDist(rib: Rib, x: number, y: number): number {
+  let best = Infinity;
+  const o = rib.outline;
+  for (let i = 0, j = o.length - 1; i < o.length; j = i++) {
+    const [ax, ay] = o[j], [bx, by] = o[i], dx = bx - ax, dy = by - ay;
+    const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy || 1)));
+    best = Math.min(best, Math.hypot(x - ax - t * dx, y - ay - t * dy));
+  }
+  return best;
+}
+
 test('the working edge is the pot, so the rib meets the clay along the whole profile', () => {
   for (const shape of PRESETS) {
     const rib = buildRib(settings(shape));
@@ -97,24 +109,39 @@ test('the rim gets its own long mark, and extra marks land at the heights you li
   expect(rib.marks.filter((m) => m.kind === 'line').map((m) => m.y)).toEqual([35, 70, 90]);
 });
 
-test('every mark sits on the rib and clear of the finger hole', () => {
+test('every mark sits on the flat top, clear of the bevel and the finger hole', () => {
   for (const shape of PRESETS) {
     const rib = buildRib(settings(shape));
     const corners = (m: Rib['marks'][number]) => [...m.rects.flatMap((r) => [[r[0], r[1]], [r[2], r[1]], [r[0], r[3]], [r[2], r[3]]]), ...(m.polys ?? []).flat()];
     for (const m of rib.marks) for (const [x, y] of corners(m)) {
       expect(inside(rib, x, y), `${shape.name} mark at ${m.y}`).toBe(true);
+      expect(edgeDist(rib, x, y), `${shape.name} mark at ${m.y}`).toBeGreaterThanOrEqual(rib.bevel.run);
       if (rib.hole) expect(Math.hypot(x - rib.hole.x, y - rib.hole.y)).toBeGreaterThan(rib.hole.r);
     }
   }
 });
 
-test('the finger hole keeps at least 3 mm of plastic round it', () => {
+test('the finger hole sits on the flat top, with at least 1.5 mm of it round the hole', () => {
   const rib = buildRib(mug);
   expect(rib.hole).not.toBeNull();
   const { x, y, r } = rib.hole!;
-  for (let a = 0; a < 360; a += 10) {
-    const t = (a * Math.PI) / 180;
-    expect(inside(rib, x + (r + 3) * Math.cos(t), y + (r + 3) * Math.sin(t))).toBe(true);
+  expect(inside(rib, x, y)).toBe(true);
+  expect(edgeDist(rib, x, y)).toBeGreaterThanOrEqual(r + rib.bevel.run + 1.5 - 1e-6);
+});
+
+test('the edge has the profile of the MakerWorld set: a rounded foot, a straight land, and a bevel up to the top face', () => {
+  expect(buildRib(mug).bevel).toEqual({ fillet: 0.55, land: 1.5, run: 3.75 });
+  for (const shape of PRESETS) {
+    const s = settings(shape), rib = buildRib(s), { body } = ribParts(rib, s.thick, s.emboss), { fillet, land, run } = rib.bevel;
+    let onEdge = 0;
+    for (let k = 0; k < body.length; k += 3) {
+      const [x, y, z] = [body[k], body[k + 1], body[k + 2]], d = edgeDist(rib, x, y);
+      if (Math.abs(z - s.thick) < 1e-4) expect(d, `${shape.name} top`).toBeGreaterThanOrEqual(run - 0.05);
+      if (Math.abs(z) < 1e-4) expect(d, `${shape.name} bottom`).toBeGreaterThanOrEqual(fillet - 0.05);
+      if (Math.abs(z - land) < 1e-4 && d < 1e-3) onEdge++;
+    }
+    // The land is the full outline, so the rib meets the clay along the exact pot.
+    expect(onEdge, shape.name).toBeGreaterThan(rib.outline.length);
   }
 });
 
