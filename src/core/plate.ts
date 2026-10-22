@@ -1,8 +1,11 @@
 // A plate is several ribs printed together. plate3mf() lays them out on the bed and writes them
 // as one 3MF file, the format Bambu Studio and other slicers open with every part already placed.
 
-/** One rib on the plate: the exact STL that Download STL saves, and the name the slicer shows. */
-export interface PlatePart { name: string; stl: ArrayBuffer }
+/**
+ * One rib on the plate: the exact STL that Download STL saves, and the name the slicer shows.
+ * With parts set, the 3MF writes the rib as those parts, such as the body and the marks, so each can take its own filament.
+ */
+export interface PlatePart { name: string; stl: ArrayBuffer; parts?: { name: string; stl: ArrayBuffer }[] }
 
 // packPlate() places parts in rows from the bed's front-left corner. Each part keeps its orientation,
 // and the finished layout is centred on the bed. It returns each part's front-left corner, or null
@@ -109,20 +112,29 @@ const mm = (v: number) => String(Math.round(v * 1e4) / 1e4);
 
 // plate3mf() lays the parts out on a bedW × bedD bed with gap mm between them, and writes the 3MF.
 // Each part keeps the orientation its STL has, so a rib stays rotated to fit the bed.
-// stays upright. It returns null when the parts do not fit the bed.
+// It returns null when the parts do not fit the bed.
 export async function plate3mf(parts: PlatePart[], bedW: number, bedD: number, gap = 10): Promise<Uint8Array | null> {
   const meshes = parts.map((p) => stlMesh(p.stl));
   const at = packPlate(meshes.map((m) => [m.max[0] - m.min[0], m.max[1] - m.min[1]]), bedW, bedD, gap);
   if (!at) return null;
   const objects: string[] = [], items: string[] = [];
-  meshes.forEach((m, i) => {
-    // Each object starts at the origin, and its build item moves it to its place on the bed.
+  // Each object starts at the origin, and its build item moves it to its place on the bed.
+  // A rib's parts share the whole rib's corner as their origin, so they keep their places in it.
+  const meshXml = (id: number, name: string, m: Mesh, min: number[]) => {
     const v: string[] = [], t: string[] = [];
     for (let k = 0; k < m.vertices.length; k += 3)
-      v.push(`<vertex x="${mm(m.vertices[k] - m.min[0])}" y="${mm(m.vertices[k + 1] - m.min[1])}" z="${mm(m.vertices[k + 2] - m.min[2])}"/>`);
+      v.push(`<vertex x="${mm(m.vertices[k] - min[0])}" y="${mm(m.vertices[k + 1] - min[1])}" z="${mm(m.vertices[k + 2] - min[2])}"/>`);
     for (let k = 0; k < m.triangles.length; k += 3) t.push(`<triangle v1="${m.triangles[k]}" v2="${m.triangles[k + 1]}" v3="${m.triangles[k + 2]}"/>`);
-    objects.push(`<object id="${i + 1}" name="${xmlName(parts[i].name)}" type="model"><mesh><vertices>${v.join('')}</vertices><triangles>${t.join('')}</triangles></mesh></object>`);
-    items.push(`<item objectid="${i + 1}" transform="1 0 0 0 1 0 0 0 1 ${mm(at[i][0])} ${mm(at[i][1])} 0"/>`);
+    objects.push(`<object id="${id}" name="${xmlName(name)}" type="model"><mesh><vertices>${v.join('')}</vertices><triangles>${t.join('')}</triangles></mesh></object>`);
+  };
+  let id = 0;
+  meshes.forEach((m, i) => {
+    const sub = parts[i].parts;
+    if (sub?.length) {
+      const ids = sub.map((p) => { meshXml(++id, p.name, stlMesh(p.stl), m.min); return id; });
+      objects.push(`<object id="${++id}" name="${xmlName(parts[i].name)}" type="model"><components>${ids.map((c) => `<component objectid="${c}"/>`).join('')}</components></object>`);
+    } else meshXml(++id, parts[i].name, m, m.min);
+    items.push(`<item objectid="${id}" transform="1 0 0 0 1 0 0 0 1 ${mm(at[i][0])} ${mm(at[i][1])} 0"/>`);
   });
   const enc = new TextEncoder();
   return zipFiles([

@@ -22,24 +22,31 @@ export function prism(poly: [number, number][], z0: number, z1: number): number[
   return out;
 }
 
-// ribTris() builds the rib as triangles, 9 numbers each. The body is the outline extruded thick mm,
-// with the finger hole cut through. Each mark is a box that stands emboss mm proud of the top face
-// and sinks 0.2 mm into it, so the slicer merges it with the body instead of balancing it on top.
-export function ribTris(rib: Rib, thick: number, emboss: number): Float32Array {
+// ribParts() builds the rib as two sets of triangles, 9 numbers each. The body is the outline extruded
+// thick mm, with the finger hole cut through. Each mark is a box that stands emboss mm proud of the top
+// face and sinks 0.2 mm into it, so the slicer merges it with the body instead of balancing it on top.
+// The marks come apart from the body so a slicer can print them in a second filament.
+export function ribParts(rib: Rib, thick: number, emboss: number): { body: Float32Array; marks: Float32Array } {
   const shape = new THREE.Shape(rib.outline.map(([x, y]) => new THREE.Vector2(x, y)));
   if (rib.hole) {
     const { x, y, r } = rib.hole, n = 64;
     shape.holes.push(new THREE.Path(Array.from({ length: n }, (_, i) => new THREE.Vector2(x + r * Math.cos((2 * Math.PI * i) / n), y + r * Math.sin((2 * Math.PI * i) / n)))));
   }
-  const body = new THREE.ExtrudeGeometry(shape, { depth: thick, bevelEnabled: false, curveSegments: 1 });
-  const pos = body.attributes.position.array as Float32Array;
-  body.dispose();
+  const geo = new THREE.ExtrudeGeometry(shape, { depth: thick, bevelEnabled: false, curveSegments: 1 });
+  const body = new Float32Array(geo.attributes.position.array);
+  geo.dispose();
   const marks = emboss > 0 ? rib.marks.flatMap((m) => [
     ...m.rects.flatMap(([x0, y0, x1, y1]) => box(x0, y0, thick - 0.2, x1, y1, thick + emboss)),
     ...(m.polys ?? []).flatMap((p) => prism(p, thick - 0.2, thick + emboss)),
   ]) : [];
-  const out = new Float32Array(pos.length + marks.length);
-  out.set(pos); out.set(marks, pos.length);
+  return { body, marks: new Float32Array(marks) };
+}
+
+// ribTris() builds the whole rib, the body and its marks, as one set of triangles.
+export function ribTris(rib: Rib, thick: number, emboss: number): Float32Array {
+  const { body, marks } = ribParts(rib, thick, emboss);
+  const out = new Float32Array(body.length + marks.length);
+  out.set(body); out.set(marks, body.length);
   return out;
 }
 
