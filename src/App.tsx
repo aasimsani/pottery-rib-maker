@@ -107,13 +107,18 @@ export function App() {
           onDelete={() => setShapes((xs) => xs.filter((x) => x.name !== s.name))} />
         <main>
           <Preview s={s} rib={rib} tris={tris} edit={edit} print={print} plate={plate} onSvg={onSvg}
-            onStl={async () => {
+            onStl={() => {
               if (!print) return;
-              // A rib in parts saves as a 3MF with the rib alone, centred on the bed.
-              const zip = print.parts && await plate3mf([{ ...print, name: s.name }], s.bedW, s.bedD);
-              download(zip ? new Blob([zip as BlobPart], { type: 'model/3mf' }) : new Blob([print.stl], { type: 'model/stl' }), print.name);
+              // A rib in parts saves as one STL per part, because an STL holds one solid.
+              const files = print.parts?.map((p, i) => ({ stl: p.stl, name: `${print.name}_${i ? 'marks' : 'rib'}.stl` })) ?? [{ stl: print.stl, name: `${print.name}.stl` }];
+              for (const f of files) download(new Blob([f.stl], { type: 'model/stl' }), f.name);
             }}
-            onAddToPlate={() => print && setPlate((p) => [...p, { ...print, name: print.name.replace(/\.(stl|3mf)$/, '') }])} />
+            on3mf={async () => {
+              // The 3MF holds the rib alone, centred on the bed, with its parts when it has them.
+              const zip = print && await plate3mf([{ ...print, name: s.name }], s.bedW, s.bedD);
+              if (zip) download(new Blob([zip as BlobPart], { type: 'model/3mf' }), `${print.name}.3mf`);
+            }}
+            onAddToPlate={() => print && setPlate((p) => [...p, print])} />
           <PlatePanel plate={plate} bedW={s.bedW} bedD={s.bedD} onRemove={(i) => setPlate((p) => p.filter((_, k) => k !== i))}
             onClear={() => setPlate([])} onDownload={(zip, name) => download(new Blob([zip as BlobPart], { type: 'model/3mf' }), name)} />
         </main>

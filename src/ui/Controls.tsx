@@ -128,7 +128,7 @@ export function Controls(props: EditorProps) {
           A long line marks the rim when the rib reaches above it. To add more lines, enter wet heights in mm, the same as the pot measurements,
           such as where a handle goes or where the wall turns. Print with the marks facing up.
           {s.splitMarks
-            ? ' The download is a 3MF file, because an STL file holds only one part. In Bambu Studio, the rib opens as one object with two parts, Rib and Scale marks, so you can give the marks their own filament.'
+            ? ' The 3MF file opens in Bambu Studio as one object with two parts, Rib and Scale marks, so you can give the marks their own filament. The STL download is two files. Select both when you import them, and Bambu Studio loads them as one object.'
             : ' To print the marks in a second color, save them as a separate part, or add a filament change at the layer where they start.'}
         </p>
       </Section>
