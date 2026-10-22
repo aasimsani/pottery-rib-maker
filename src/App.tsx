@@ -3,7 +3,7 @@ import { DEFAULTS, usePersistent, type Settings } from './state';
 import { buildRib } from './core/rib';
 import { ribTris } from './core/mesh';
 import { exportName, exportSTL } from './export';
-import type { PlatePart } from './core/plate';
+import { plate3mf, type PlatePart } from './core/plate';
 import type { Shape } from './presets';
 import { insertPoint, movePoint, removePoint } from './core/edit';
 import { widestD, type ProfilePoint } from './core/profile';
@@ -107,8 +107,13 @@ export function App() {
           onDelete={() => setShapes((xs) => xs.filter((x) => x.name !== s.name))} />
         <main>
           <Preview s={s} rib={rib} tris={tris} edit={edit} print={print} plate={plate} onSvg={onSvg}
-            onStl={() => print && download(new Blob([print.stl], { type: 'model/stl' }), print.name)}
-            onAddToPlate={() => print && setPlate((p) => [...p, { name: print.name.replace(/\.stl$/, ''), stl: print.stl }])} />
+            onStl={async () => {
+              if (!print) return;
+              // A rib in parts saves as a 3MF with the rib alone, centred on the bed.
+              const zip = print.parts && await plate3mf([{ ...print, name: s.name }], s.bedW, s.bedD);
+              download(zip ? new Blob([zip as BlobPart], { type: 'model/3mf' }) : new Blob([print.stl], { type: 'model/stl' }), print.name);
+            }}
+            onAddToPlate={() => print && setPlate((p) => [...p, { ...print, name: print.name.replace(/\.(stl|3mf)$/, '') }])} />
           <PlatePanel plate={plate} bedW={s.bedW} bedD={s.bedD} onRemove={(i) => setPlate((p) => p.filter((_, k) => k !== i))}
             onClear={() => setPlate([])} onDownload={(zip, name) => download(new Blob([zip as BlobPart], { type: 'model/3mf' }), name)} />
         </main>

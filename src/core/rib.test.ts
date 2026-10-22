@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import { buildRib, sevenSeg, textWidth, type Rib } from './rib';
-import { ribSTL, ribTris } from './mesh';
+import { ribParts, ribSTL, ribTris } from './mesh';
 import { stlSize } from './plate';
 import { checkStl } from '../test/stl';
 import { DEFAULTS, type Settings } from '../state';
@@ -125,6 +125,15 @@ test('every preset prints as closed solids, as thick as the rib plus its raised 
     expect(stats.volume, shape.name).toBeGreaterThan(0);
     expect(stats.max[2] - stats.min[2]).toBeCloseTo(s.thick + s.emboss, 4);
   }
+});
+
+test('the rib and its marks split into two closed parts that make up the whole rib', () => {
+  const s = settings(), rib = buildRib(s), { body, marks } = ribParts(rib, s.thick, s.emboss);
+  expect(body.length + marks.length).toBe(ribTris(rib, s.thick, s.emboss).length);
+  const b = checkStl(ribSTL(body, 0)), m = checkStl(ribSTL(marks, 0));
+  expect(b.volume).toBeGreaterThan(0); expect(m.volume).toBeGreaterThan(0);
+  expect(b.max[2]).toBeCloseTo(s.thick, 4);
+  expect(m.max[2]).toBeCloseTo(s.thick + s.emboss, 4);
 });
 
 test('a rib too tall for the bed turns until it fits, and one far too big is refused', () => {

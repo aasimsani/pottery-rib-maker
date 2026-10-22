@@ -74,6 +74,19 @@ describe('plate3mf', () => {
     expect(model).toContain('unit="millimeter"');
   });
 
+  test('a rib with parts becomes one object made of its parts, which keep their places', async () => {
+    const body = sheetStl(), marks = ribSTL(new Float32Array(box(2, 1, 0.4, 4, 3, 1.2)), 0);
+    const whole = ribSTL(new Float32Array([...box(0, 0, 0, 10, 5, 0.6), ...box(2, 1, 0.4, 4, 3, 1.2)]), 0);
+    const zip = await plate3mf([{ name: 'Mug', stl: whole, parts: [{ name: 'Rib', stl: body }, { name: 'Scale marks', stl: marks }] }], 256, 256);
+    const model = (await unzip(zip!)).get('3D/3dmodel.model')!.text;
+    expect(model.match(/<object /g)).toHaveLength(3);
+    expect(model.match(/<component /g)).toHaveLength(2);
+    expect(model.match(/<item /g)).toHaveLength(1);
+    expect(model).toContain('name="Scale marks"');
+    // The marks start 2 mm in and 0.4 mm up from the whole rib's corner, as they do in the rib.
+    expect(model).toContain('<vertex x="2" y="1" z="0.4"/>');
+  });
+
   test('returns null when the parts do not fit the bed', async () => {
     expect(await plate3mf([{ name: 'Big', stl: sheetStl() }], 8, 8)).toBeNull();
   });

@@ -38,7 +38,7 @@ The workflow `.github/workflows/ci.yml` runs the tests and the build on every pu
 4. **Shape the rib.** **Narrowest width** sets how much plastic is behind the working edge. **Above the rim** makes the rib taller than the pot, so the rim line sits on the rib. **Both long edges throw the pot** makes the back edge a second working edge.
 5. **Set the height scale.** Clear **Put a height scale on the rib** for a plain rib. Otherwise, pick the units and the numbers. With **wet and fired**, a sloped line runs from each wet height down to its fired height, so a pot thrown to the 9 cm line reads 7.9 at 7.9 cm. **Wet, dry, and fired** adds a bone-dry column between them, which needs a rib about 75 mm wide. Enter your clay's **Drying shrinkage**, which is part of the total shrinkage. To add lines, enter wet heights in mm in **More marks at**. The rim line and each extra line carry their own wet, dry, and fired numbers.
 6. **Check the rib.** Fix every error that the **Print check** marks.
-7. **Download the STL file**, and then slice it. To print several ribs together, click **Add to plate** for each one. Then click **Download plate (.3mf)**, which saves one file with every rib placed on the bed.
+7. **Download the STL file**, and then slice it. To print the marks in a second filament, select **Save the marks as a separate part** under **Height scale**. The download is then a 3MF file, and Bambu Studio opens the rib as one object with two parts, **Rib** and **Scale marks**. To print several ribs together, click **Add to plate** for each one. Then click **Download plate (.3mf)**, which saves one file with every rib placed on the bed.
 
 ## Print it
 
@@ -46,7 +46,7 @@ The defaults suit a Bambu Lab P2S with a 0.4 mm nozzle. To use a different bed s
 
 - Print the rib flat, with the marks facing up, exactly as exported. Turn the brim off.
 - Use PETG, because it survives water and clay grit better than PLA. The print project for the Ceramic Rib Tool Set uses PETG at 0.12 mm layers, with 4 walls and 40% gyroid infill.
-- To print the marks in a second color, add a filament change at the layer where the marks start.
+- To print the marks in a second color, save them as a separate part and give that part its own filament. On a printer with one filament, add a filament change at the layer where the marks start.
 - Rub the working edge with 400-grit wet sandpaper, so it leaves a smooth wall.
 
 ## Use it

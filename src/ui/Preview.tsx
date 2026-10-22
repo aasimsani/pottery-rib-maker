@@ -17,7 +17,7 @@ interface Props {
   s: Settings; rib: Rib; tris: Float32Array;
   edit: EditProps & { canUndo: boolean; notice: string; onUndo: () => void; onStartOver: () => void };
   /** The exact file Download STL saves, or null when the rib doesn't fit the bed. */
-  print: { stl: ArrayBuffer; name: string } | null;
+  print: PlatePart | null;
   plate: PlatePart[];
   onStl: () => void; onAddToPlate: () => void; onSvg: (svg: SVGSVGElement) => void;
 }
@@ -127,7 +127,7 @@ export function Preview({ s, rib, tris, print, plate, edit, onStl, onAddToPlate,
         ))}
       </ul>
       <div className="actions">
-        <button onClick={onStl} disabled={!print}>Download STL</button>
+        <button onClick={onStl} disabled={!print}>{print?.parts ? 'Download 3MF' : 'Download STL'}</button>
         <button className="secondary" onClick={onAddToPlate} disabled={!print}>Add to plate</button>
         <button className="secondary" onClick={() => { const svg = svgHost.current?.querySelector('svg'); if (svg) onSvg(svg); }} disabled={!ok}>Download drawing (SVG)</button>
       </div>
