@@ -130,7 +130,9 @@ test('the finger hole sits on the flat top, with at least 1.5 mm of it round the
 });
 
 test('the edge has the profile of the MakerWorld set: a rounded foot, a straight land, and a bevel up to the top face', () => {
-  expect(buildRib(mug).bevel).toEqual({ fillet: 0.55, land: 1.5, run: 3.75 });
+  const { fillet: f, land: l, run: r } = buildRib(mug).bevel;
+  expect([f, r]).toEqual([0.55, 3.75]);
+  expect(l).toBeCloseTo(4.5 - 3.75 * Math.tan((39 * Math.PI) / 180), 6);
   for (const shape of PRESETS) {
     const s = settings(shape), rib = buildRib(s), { body } = ribParts(rib, s.thick, s.emboss), { fillet, land, run } = rib.bevel;
     let onEdge = 0;
@@ -161,6 +163,23 @@ test('the rib and its marks split into two closed parts that make up the whole r
   expect(b.volume).toBeGreaterThan(0); expect(m.volume).toBeGreaterThan(0);
   expect(b.max[2]).toBeCloseTo(s.thick, 4);
   expect(m.max[2]).toBeCloseTo(s.thick + s.emboss, 4);
+});
+
+test('the bevel reaches as far in as you set, at the angle you set, and the rest is the straight land', () => {
+  const steep = buildRib({ ...mug, bevelWidth: 2, bevelAngle: 60 }).bevel;
+  expect(steep.run).toBe(2);
+  expect(steep.land).toBeCloseTo(4.5 - 2 * Math.tan(Math.PI / 3), 6);
+  // A bevel can't eat the whole edge, so at least 1 mm of land stays to meet the clay.
+  const wide = buildRib({ ...mug, bevelWidth: 10 }).bevel;
+  expect(wide.land).toBeCloseTo(1, 6);
+  expect(wide.run).toBeCloseTo(3.5 / Math.tan((39 * Math.PI) / 180), 6);
+  const square = buildRib({ ...mug, bevelWidth: 0 });
+  expect(square.bevel.run).toBe(0);
+  expect(square.bevel.land).toBe(4.5);
+  for (const s of [{ ...mug, bevelWidth: 0 }, { ...mug, bevelWidth: 2, bevelAngle: 60 }, { ...mug, bevelWidth: 10 }]) {
+    const rib = buildRib(s);
+    expect(checkStl(ribSTL(ribTris(rib, s.thick, s.emboss), 0)).max[2]).toBeCloseTo(s.thick + s.emboss, 4);
+  }
 });
 
 test('a rib too tall for the bed turns until it fits, and one far too big is refused', () => {

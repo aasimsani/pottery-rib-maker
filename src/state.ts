@@ -12,6 +12,8 @@ export interface Settings {
   /** Shapes the back edge like the working edge, so both long edges throw the pot. */
   mirror: boolean;
   thick: number;
+  /** How far in the edge bevel reaches on the top face, in mm, and how steep it is, in degrees from the face. 0 mm gives a square edge. */
+  bevelWidth: number; bevelAngle: number;
   hole: boolean; holeD: number;
   // Height scale
   units: 'mm' | 'cm' | 'in';
@@ -36,7 +38,7 @@ export interface Settings {
 
 export const DEFAULTS: Settings = {
   name: 'Rounded-base mug', profile: [{ z: 0, d: 62 }, { z: 4, d: 72 }, { z: 14, d: 80 }, { z: 90, d: 80 }],
-  shrink: 12, body: 60, above: 10, mirror: false, thick: 4.5, hole: true, holeD: 18,
+  shrink: 12, body: 60, above: 10, mirror: false, thick: 4.5, bevelWidth: 3.75, bevelAngle: 39, hole: true, holeD: 18,
   units: 'cm', scale: true, scaleNumbers: 'wet-fired', dryShrink: 6, rimLine: true, extraMarks: '', emboss: 0.6, splitMarks: true,
   ...GUARDS,
   bedW: 256, bedD: 256,
