@@ -6,24 +6,22 @@ import { frameObject, useOrbitScene } from './scene';
 
 export type WheelMode = 'wheel' | 'fired';
 
-interface Props { rib: Rib; tris: Float32Array; thick: number; shrink: number; mode: WheelMode; className?: string; label: string }
+interface Props { rib: Rib; tris: Float32Array; thick: number; wall: number; shrink: number; mode: WheelMode; className?: string; label: string }
 
-const WALL = 6, FLOOR = 8;
-
-// potMesh() revolves the pot's outside into a lathe mesh. The inside runs a wall's thickness in,
-// down to a floor, so the open top reads as a pot rather than a solid.
-function potMesh(rib: Rib) {
-  const out = rib.pot.map((p) => new THREE.Vector2(p.r, p.z));
-  const inner = [...rib.pot].reverse().map((p) => new THREE.Vector2(Math.max(1, p.r - WALL), Math.max(FLOOR, p.z)));
-  const pts = [new THREE.Vector2(0, 0), ...out, ...inner, new THREE.Vector2(0, FLOOR)];
+// potMesh() revolves the outside into a lathe mesh. The inside runs a wall's thickness in from the
+// finished pot, down to a floor as thick as the wall, so clay left to trim shows as a thicker foot.
+function potMesh(rib: Rib, outside: Rib['pot'], wall: number) {
+  const out = outside.map((p) => new THREE.Vector2(p.r, p.z));
+  const inner = [...rib.pot].reverse().map((p) => new THREE.Vector2(Math.max(1, p.r - wall), Math.max(wall, p.z)));
+  const pts = [new THREE.Vector2(0, 0), ...out, ...inner, new THREE.Vector2(0, wall)];
   return new THREE.Mesh(new THREE.LatheGeometry(pts, 160), new THREE.MeshStandardMaterial({ color: tokenColor('--clay'), roughness: 0.85, side: THREE.DoubleSide }));
 }
 
 /**
  * The thrown pot on the wheel head, with the rib held against it where it shapes the wall. The
- * fired view shows the pot alone, shrunk to the size it leaves the kiln.
+ * fired view shows the pot alone, trimmed and shrunk to the size it leaves the kiln.
  */
-export default function Wheel3D({ rib, tris, thick, shrink, mode, className, label }: Props) {
+export default function Wheel3D({ rib, tris, thick, wall, shrink, mode, className, label }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const three = useOrbitScene(host);
   const fit = useRef<{ scene?: object; key?: string }>({});
@@ -32,9 +30,9 @@ export default function Wheel3D({ rib, tris, thick, shrink, mode, className, lab
     const t = three.current;
     if (!t || !rib.pot.length) return;
     const group = new THREE.Group();
-    const pot = potMesh(rib);
+    const pot = potMesh(rib, mode === 'wheel' ? rib.thrown : rib.pot, wall);
     group.add(pot);
-    const rmax = Math.max(...rib.pot.map((p) => p.r)), wheelR = Math.max(rmax * 1.5, rib.rmin + rib.width + 10);
+    const rmax = Math.max(...rib.thrown.map((p) => p.r)), wheelR = Math.max(rmax * 1.5, rib.rmin + rib.width + 10);
     const wheel = new THREE.Mesh(new THREE.CylinderGeometry(wheelR, wheelR, 6, 96), new THREE.MeshStandardMaterial({ color: tokenColor('--wheel'), roughness: 0.6 }));
     wheel.position.y = -3;
     group.add(wheel);
@@ -61,7 +59,7 @@ export default function Wheel3D({ rib, tris, thick, shrink, mode, className, lab
       t.scene.remove(group);
       for (const m of [pot, wheel, ribMesh]) if (m) { m.geometry.dispose(); (m.material as THREE.Material).dispose(); }
     };
-  }, [rib, tris, thick, shrink, mode, three]);
+  }, [rib, tris, thick, wall, shrink, mode, three]);
 
   return <div ref={host} className={className} role="img" aria-label={label} />;
 }

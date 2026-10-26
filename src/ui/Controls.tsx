@@ -29,7 +29,7 @@ function PotEditor({ s, set, onSave, isSaved, onDelete, selected, onSelect, onBe
           <button className="secondary small" onClick={onSave}>Save to my shapes</button>
           {isSaved && <button className="secondary small" onClick={onDelete}>Delete</button>}
         </div>
-        <p className="hint">Draw the pot on the rib drawing, or type exact numbers here. They are the pot as you throw it, wet, from the rim down to the base.</p>
+        <p className="hint">Draw the pot on the rib drawing, or type exact numbers here. They are the wet pot after trimming, from the rim down to the base.</p>
         <table className="points">
           <thead><tr><th scope="col">Point</th><th scope="col">Height</th><th scope="col">Ø</th><th scope="col">Corner</th><th><span className="visually-hidden">Remove</span></th></tr></thead>
           <tbody>
@@ -85,11 +85,28 @@ function PotEditor({ s, set, onSave, isSaved, onDelete, selected, onSelect, onBe
   );
 }
 
-export function Controls(props: EditorProps) {
+export function Controls(props: EditorProps & { clayG: number; heelFit: number | null }) {
   const { s, set } = props;
   return (
     <aside className="panel controls" aria-label="Pot and rib settings">
       <PotEditor {...props} />
+
+      <Section title="Trimming and clay">
+        <NumberField label="Trim line" unit="mm" value={s.trimLine} min={0} max={200} step={1} onChange={(v) => set('trimLine', v)} />
+        {s.trimLine > 0 && <NumberField label="Heel angle" unit="°" value={s.heel} min={0} max={60} step={1} onChange={(v) => set('heel', v)} />}
+        <NumberField label="Wall thickness" unit="mm" value={s.wall} min={2} max={20} step={0.5} onChange={(v) => set('wall', v)} />
+        <NumberField label="Clay weight" unit={s.clayUnit} value={s.clay} min={0} max={50} step={0.25} onChange={(v) => set('clay', v)} />
+        <SelectField label="Weight in" value={s.clayUnit} onChange={(v) => set('clayUnit', v)} options={[['lb', 'pounds'], ['kg', 'kilograms']]} />
+        {props.heelFit !== null && s.trimLine > 0 && Math.round(props.heelFit) !== s.heel && (
+          <div className="row-actions"><button className="secondary small" onClick={() => set('heel', Math.round(props.heelFit!))}>Use a {Math.round(props.heelFit)}° heel for {s.clay} {s.clayUnit}</button></div>
+        )}
+        <p className="hint">
+          The pot measurements are the pot after trimming. Trimming stops at the trim line, where you'd feel the wall start to thicken.
+          Below it the rib leaves a heel of clay, its outside running straight down to the wheel head at the heel angle, 0° for straight down.
+          A steeper angle leaves less to trim. The drawing shades the clay you'll trim off.
+          {props.clayG > 0 && ` With ${s.wall} mm walls and floor, the thrown pot takes about ${(props.clayG / (s.clayUnit === 'lb' ? 453.6 : 1000)).toFixed(1)} ${s.clayUnit} of clay.${s.clay ? '' : ' Enter your clay weight to find the heel angle that uses it.'}`}
+        </p>
+      </Section>
 
       <Section title="Rib">
         <NumberField label="Narrowest width" unit="mm" value={s.body} min={3} max={150} step={1} onChange={(v) => set('body', v)} />

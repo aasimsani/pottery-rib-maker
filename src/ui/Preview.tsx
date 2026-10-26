@@ -43,7 +43,7 @@ export function Preview({ s, rib, tris, print, plate, edit, onStl, on3mf, onSpli
     if (mode === 'print') return print
       ? <Suspense fallback={fallback}><PrintView parts={bedParts} bedW={s.bedW} bedD={s.bedD} gap={PLATE_GAP} className={className} label={`Print plate: this rib${plate.length ? ` and ${plate.length} more` : ''} on a ${s.bedW} × ${s.bedD} mm bed`} /></Suspense>
       : <div className={`${className} loading`}>No print file: the rib doesn't fit the bed.</div>;
-    return <Suspense fallback={fallback}><Wheel3D rib={rib} tris={tris} thick={s.thick} shrink={s.shrink} mode={mode} className={className} label={`3D view of ${label}`} /></Suspense>;
+    return <Suspense fallback={fallback}><Wheel3D rib={rib} tris={tris} thick={s.thick} wall={s.wall} shrink={s.shrink} mode={mode} className={className} label={`3D view of ${label}`} /></Suspense>;
   };
   const modeToggle = (
     <div className="seg" role="group" aria-label="3D view">
@@ -54,7 +54,7 @@ export function Preview({ s, rib, tris, print, plate, edit, onStl, on3mf, onSpli
   );
   const hint = mode === 'print'
     ? (plate.length ? `This rib is in teal, beside the ${plate.length} on the plate.` : 'The exact STL that Download STL saves, on the bed.')
-    : mode === 'fired' ? `The pot after firing, ${s.shrink}% smaller than it was thrown.` : 'Drag to rotate, scroll to zoom.';
+    : mode === 'fired' ? `The pot after trimming and firing, ${s.shrink}% smaller than it was thrown.` : 'Drag to rotate, scroll to zoom.';
 
   const errors = rib.checks.filter((c) => c.level === 'error').length, warns = rib.checks.filter((c) => c.level === 'warn').length;
   const columns = { none: '', wet: 'wet', 'wet-fired': 'wet / fired', 'wet-dry-fired': 'wet / dry / fired' }[s.scaleNumbers];
@@ -76,7 +76,7 @@ export function Preview({ s, rib, tris, print, plate, edit, onStl, on3mf, onSpli
               <button className="secondary small" onClick={edit.onStartOver} title="Start from a plain cylinder at this size">Start over</button>
             </div>
           </div>
-          <div ref={svgHost}><RibView rib={rib} shrink={s.shrink} dryShrink={s.scale && s.scaleNumbers === 'wet-dry-fired' ? s.dryShrink : undefined} label={label} edit={edit} /></div>
+          <div ref={svgHost}><RibView rib={rib} shrink={s.shrink} dryShrink={s.scale && s.scaleNumbers === 'wet-dry-fired' ? s.dryShrink : undefined} trimLine={Math.min(s.trimLine, rib.rim)} label={label} edit={edit} /></div>
           <p className={`hint draw-hint${edit.notice ? ' caution' : ''}`} role="status">
             {edit.notice ? edit.notice : sel
               ? <>Point {edit.selected! + 1} of {edit.profile.length}: <b>{sel.z} mm</b> up, <b>Ø {sel.d} mm</b>{sel.sharp ? ', corner' : ''}, as thrown. Arrow keys nudge it, and Shift moves 5 mm.</>

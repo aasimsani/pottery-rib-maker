@@ -21,6 +21,8 @@ interface Props {
   rib: Rib; shrink: number; mini?: boolean; label?: string; edit?: EditProps;
   /** The drying shrinkage, in %. With it set, the drawing outlines the bone-dry pot too. */
   dryShrink?: number;
+  /** The trim line's height, in mm, labelled when the rib leaves clay to trim. */
+  trimLine?: number;
 }
 
 const f1 = (v: number) => v.toFixed(0);
@@ -28,7 +30,7 @@ const f1 = (v: number) => v.toFixed(0);
 // RibView draws the rib flat, as it prints, beside a cross-section of the thrown pot it shapes.
 // The drawing is in mm with y pointing up, so the group flips the SVG's downward y. With edit set,
 // the measured points become handles that you drag, and a ＋ between two points adds one there.
-export function RibView({ rib, shrink, dryShrink, mini, label, edit }: Props) {
+export function RibView({ rib, shrink, dryShrink, trimLine, mini, label, edit }: Props) {
   const svg = useRef<SVGSVGElement>(null);
   const [drag, setDrag] = useState<{ i: number; box: string } | null>(null);
   const editRef = useRef(edit);
@@ -59,7 +61,11 @@ export function RibView({ rib, shrink, dryShrink, mini, label, edit }: Props) {
   const Y = (y: number) => top - y; // the flip for anything that must not be mirrored
   // The view box holds still during a drag, so the drawing doesn't rescale under the pointer.
   const box = drag?.box ?? `${x0} ${Y(y1)} ${x1 - x0} ${y1 - y0}`;
-  const potPath = 'M' + [...pot.map((p) => `${p.r},${p.z}`), ...[...pot].reverse().map((p) => `${-p.r},${p.z}`)].join(' L') + ' Z';
+  const section = (c: typeof pot) => 'M' + [...c.map((p) => `${p.r},${p.z}`), ...[...c].reverse().map((p) => `${-p.r},${p.z}`)].join(' L') + ' Z';
+  // The clay fill is the thrown pot, which the rib edge follows. When the rib leaves clay to trim, the
+  // band between the thrown and finished pots is shaded, and the finished pot is dashed inside it.
+  const thrown = rib.thrown.length ? rib.thrown : pot, trimmed = thrown[0].r - pot[0].r > 0.05;
+  const potPath = section(thrown);
   const ribPath = rib.outline.length ? 'M' + rib.outline.map(([x, y]) => `${x + rmin},${y}`).join(' L') + ' Z'
     + (rib.hole ? ` M${rib.hole.x + rmin + rib.hole.r},${rib.hole.y} a${rib.hole.r},${rib.hole.r} 0 1 0 ${-2 * rib.hole.r},0 a${rib.hole.r},${rib.hole.r} 0 1 0 ${2 * rib.hole.r},0 Z` : '') : '';
   const fired = 1 - shrink / 100, backX = rmin + rib.width + 4;
@@ -109,6 +115,8 @@ export function RibView({ rib, shrink, dryShrink, mini, label, edit }: Props) {
       <g transform={`translate(0 ${top}) scale(1 -1)`}>
         {!mini && <line className="wheel" x1={x0} x2={x1} y1={0} y2={0} />}
         <path className="pot" d={potPath} />
+        {trimmed && <path className="trim" d={`${potPath} ${section(pot)}`} fillRule="evenodd" />}
+        {trimmed && <path className="trimmed" d={outline(1)} />}
         {ribPath && <path className="rib" d={ribPath} fillRule="evenodd" />}
         {!mini && stages.map((st) => <path key={st.name} className={`stage ${st.name}`} d={outline(st.f)} />)}
         {rib.marks.map((m, i) => m.rects.map(([a, b, c, d], j) => <rect key={`${i}-${j}`} className="mark" x={a + rmin} y={b} width={c - a} height={d - b} />))}
@@ -117,6 +125,8 @@ export function RibView({ rib, shrink, dryShrink, mini, label, edit }: Props) {
       {!mini && (
         <g className="dims stages">
           <text x={-pot[pot.length - 1].r - 2} y={Y(rim) + 1.5} textAnchor="end">wet {f1(rim)}</text>
+          {trimmed && <text className="trim" x={-thrown[0].r - 2} y={Y(0) - 1.5} textAnchor="end">trim {(thrown[0].r - pot[0].r).toFixed(1).replace(/\.0$/, '')}</text>}
+          {trimmed && trimLine !== undefined && <text className="trim" x={-Math.max(...thrown.filter((p) => p.z <= trimLine).map((p) => p.r)) - 2} y={Y(trimLine) + 1.2} textAnchor="end">trim line {f1(trimLine)}</text>}
           {stages.map((st) => (
             <text key={st.name} className={st.name} x={-pot[pot.length - 1].r * st.f - 2} y={Y(rim * st.f) + 1.5} textAnchor="end">{st.name} {f1(rim * st.f)}</text>
           ))}
@@ -130,7 +140,8 @@ export function RibView({ rib, shrink, dryShrink, mini, label, edit }: Props) {
           <line x1={backX} x2={backX + 6} y1={Y(0)} y2={Y(0)} />
           <text x={backX + 6} y={Y(rim / 2) - 2}>throw to</text>
           <text x={backX + 6} y={Y(rim / 2) + 4}>{f1(rim)} mm</text>
-          <text x={0} y={Y(0) + 7} textAnchor="middle">Ø {f1(2 * pot[0].r)}</text>
+          <text x={0} y={Y(0) + 7} textAnchor="middle">Ø {f1(2 * thrown[0].r)}{trimmed && ' thrown'}</text>
+          {trimmed && <text className="sub" x={0} y={Y(0) + 12} textAnchor="middle">Ø {f1(2 * pot[0].r)} trimmed</text>}
           <text x={rmin + rib.width / 2} y={Y(0) + 7} textAnchor="middle">{f1(rib.width)} mm</text>
         </g>
       )}
