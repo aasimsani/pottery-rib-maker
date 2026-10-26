@@ -20,10 +20,12 @@ export interface Rib {
   marks: Mark[];
   /** The pot's outside after trimming, as measured. */
   pot: CurvePoint[];
-  /** The thrown pot's outside, which the working edge follows. It is the pot plus the clay left to trim at the foot. */
+  /** The thrown pot's outside, which the working edge follows. It is the pot plus the heel of clay left to trim. */
   thrown: CurvePoint[];
-  /** The thrown pot's weight of wet clay, in grams. */
-  clay: number;
+  /** The thrown pot's weight of wet clay, and how much of it you trim off, in grams. */
+  clay: number; trimmings: number;
+  /** The heel angle, in degrees, at which the thrown pot uses your clay, or null without a clay weight or a fit. */
+  heelFit: number | null;
   /** The thrown pot's narrowest radius. A point at radius r on the pot sits at x = r - rmin on the rib. */
   rmin: number;
   width: number; height: number; rim: number; narrowest: number;
@@ -51,7 +53,7 @@ function edgeAt(edge: [number, number][], y: number): number {
 // buildRib() turns the pot into the rib that throws it. The working edge is the thrown pot's outside,
 // and the rib runs from there to a straight back, or to a mirrored second working edge.
 export function buildRib(s: Settings): Rib {
-  const empty = { outline: [], hole: null, marks: [], pot: [], thrown: [], clay: 0, rmin: 0, width: 0, height: 0, rim: 0, narrowest: 0, bevel: { fillet: 0, land: 0, run: 0 }, rot: null };
+  const empty = { outline: [], hole: null, marks: [], pot: [], thrown: [], clay: 0, trimmings: 0, heelFit: null, rmin: 0, width: 0, height: 0, rim: 0, narrowest: 0, bevel: { fillet: 0, land: 0, run: 0 }, rot: null };
   const err = profileError(s.profile);
   if (err) return { ...empty, checks: [{ id: 'profile', level: 'error', message: `${err} Check the pot measurements.` }] };
 
@@ -62,10 +64,8 @@ export function buildRib(s: Settings): Rib {
   const fold = foldsAt(pot);
   // The drawing still shows the pot, so you can drag the points apart again.
   if (fold > 0) return { ...empty, pot, checks: [{ id: 'fold', level: 'error', message: `The wall folds back on itself near ${pot[fold].z.toFixed(0)} mm, so the rib couldn't pull away from the clay. Move the points there further apart, or make one a corner.` }] };
-  // The measurements are the pot after trimming. The rib leaves trim mm more clay at the foot, and the
-  // extra fades along a half cosine to nothing at trimTo mm, so the blend leaves no ridge in the wall.
-  const fade = Math.min(s.trimTo, pot[pot.length - 1].z);
-  const thrown = pot.map((p) => ({ r: p.r + (p.z < fade ? (s.trim * (1 + Math.cos((Math.PI * p.z) / fade))) / 2 : 0), z: p.z }));
+  // The measurements are the pot after trimming, and the rib throws the pot before it.
+  const thrown = thrownPot(pot, s.trimLine, s.heel);
   const rmin = Math.min(...thrown.map((p) => p.r)), maxLeft = Math.max(...thrown.map((p) => p.r)) - rmin;
   const rim = pot[pot.length - 1].z, top = rim + s.above;
   const W = s.mirror ? 2 * maxLeft + s.body : maxLeft + s.body;
@@ -84,15 +84,28 @@ export function buildRib(s: Settings): Rib {
   const rightIn = (y0: number, y1: number) => span(y0, y1, (y) => edgeAt(rightEdge, y), Math.min);
   const narrowest = span(0, top, (y) => edgeAt(rightEdge, y) - edgeAt(leftEdge, y), Math.min);
   const checks: Check[] = [];
-  if (!s.trim) checks.push({ id: 'no-trim', level: 'note', message: 'The rib throws the foot to its finished size, so it leaves no clay to trim. Set Leave for trimming if you trim this pot.' });
-  else if (s.trim > s.wall) checks.push({ id: 'trim-deep', level: 'warn', message: `The rib leaves ${s.trim} mm to trim at the foot, more than the ${s.wall} mm wall you keep. That much is slow to trim, and the thick foot can crack as it dries.` });
-  const clay = clayGrams(pot, thrown, s.wall);
+  const clay = clayGrams(pot, thrown, s.wall), trimmings = clay - clayGrams(pot, pot, s.wall);
+  const perUnit = s.clayUnit === 'lb' ? 453.6 : 1000, w = (g: number) => `${(g / perUnit).toFixed(g < perUnit ? 2 : 1)} ${s.clayUnit}`;
+  if (!(s.trimLine > 0)) checks.push({ id: 'no-trim', level: 'note', message: 'The rib throws the foot to its finished size, so it leaves no clay to trim. Set a Trim line if you trim this pot.' });
+  else if (trimmings > clay - trimmings) checks.push({ id: 'trim-deep', level: 'warn', message: `You'd trim off about ${w(trimmings)} of clay, more than the ${w(clay - trimmings)} the finished pot keeps. Raise the heel angle or lower the trim line.` });
+  // About a tenth of the clay you wedge goes to slurry, so the thrown pot gets the rest. The heel that
+  // uses exactly that much is found by bisection, because a steeper heel always holds less clay.
+  const budget = s.clay * perUnit * 0.9;
+  let heelFit: number | null = null;
+  if (s.clay > 0 && s.trimLine > 0) {
+    const mass = (deg: number) => clayGrams(pot, thrownPot(pot, s.trimLine, deg), s.wall);
+    if (mass(0) <= budget) heelFit = 0;
+    else if (mass(89) <= budget) {
+      let lo = 0, hi = 89;
+      for (let i = 0; i < 30; i++) { const mid = (lo + hi) / 2; if (mass(mid) > budget) lo = mid; else hi = mid; }
+      heelFit = (lo + hi) / 2;
+    }
+  }
   if (s.clay > 0) {
-    const g = s.clay * (s.clayUnit === 'lb' ? 453.6 : 1000), w = (v: number) => `${(v / (s.clayUnit === 'lb' ? 453.6 : 1000)).toFixed(1)} ${s.clayUnit}`;
-    const walls = `${s.wall} mm walls${s.trim ? ` and ${s.trim} mm left to trim` : ''}`;
-    checks.push(g < clay
-      ? { id: 'clay', level: 'warn', message: `This pot takes about ${w(clay)} of clay with ${walls}, more than the ${w(g)} you have. Pull the walls thinner, or make the pot smaller.` }
-      : { id: 'clay', level: 'note', message: `This pot takes about ${w(clay)} of clay with ${walls}. The rest of your ${w(g)} goes to slurry, trimmings, or thicker walls.` });
+    const thrownAs = `thrown with ${s.wall} mm walls${s.trimLine > 0 ? ` and a ${s.heel}° heel` : ''}`;
+    checks.push(budget < clay
+      ? { id: 'clay', level: 'warn', message: `This pot takes about ${w(clay)} of clay ${thrownAs}, and about a tenth more goes to slurry. That's more than your ${w(s.clay * perUnit)}. ${s.trimLine > 0 ? 'Raise the heel angle, lower the trim line, or pull' : 'Pull'} thinner walls.` }
+      : { id: 'clay', level: 'note', message: `This pot takes about ${w(clay)} of clay ${thrownAs}${trimmings > 0 ? `, and you trim about ${w(trimmings)} off` : ''}.${heelFit === 0 ? ` Even a straight-down heel uses only part of your ${w(s.clay * perUnit)}, so the rest goes into a thicker floor or walls.` : heelFit !== null ? ` Your ${w(s.clay * perUnit)} fits a heel of about ${Math.round(heelFit)}°.` : ''}` });
   }
   // The edge copies the MakerWorld Ceramic Rib Tool Set by default. A 0.55 mm round softens the foot,
   // a straight land meets the clay, and a 39° bevel runs up to the top face, 3.75 mm in. The bevel's
@@ -197,7 +210,18 @@ export function buildRib(s: Settings): Rib {
   if (rot === null) checks.unshift({ id: 'bed', level: 'error', message: `The rib is ${W.toFixed(0)} × ${top.toFixed(0)} mm, which doesn't fit the ${s.bedW} × ${s.bedD} mm bed. Make the pot smaller, or use a printer with a bigger bed.` });
   if (narrowest < 10) checks.push({ id: 'narrow', level: 'warn', message: `The rib is only ${narrowest.toFixed(1)} mm wide at its narrowest, so it flexes there. Raise Narrowest width if you want it stiffer.` });
   if (s.thick < 2) checks.push({ id: 'thin', level: 'warn', message: `A ${s.thick} mm rib bends under the clay. Use 3 mm or more for a rib that holds its shape.` });
-  return { outline, hole, marks, pot, thrown, clay, rmin, width: W, height: top, rim, narrowest, bevel, rot, checks };
+  return { outline, hole, marks, pot, thrown, clay, trimmings, heelFit, rmin, width: W, height: top, rim, narrowest, bevel, rot, checks };
+}
+
+// thrownPot() is the pot as thrown, before trimming. Below the trim line the clay stays on as a heel. Its
+// outside runs straight down from the trim line to the wheel head, heel° in from vertical, and never
+// inside the finished pot. Potters trim that heel away later, down to the foot and the pot's own curve.
+export function thrownPot(pot: CurvePoint[], line: number, heel: number): CurvePoint[] {
+  if (!(line > 0)) return pot;
+  const h = Math.min(line, pot[pot.length - 1].z), k = Math.tan((Math.min(89, Math.max(0, heel)) * Math.PI) / 180);
+  const i = pot.findIndex((p) => p.z >= h), a = pot[Math.max(0, i - 1)], b = pot[i];
+  const rh = b.z === a.z ? b.r : a.r + ((b.r - a.r) * (h - a.z)) / (b.z - a.z);
+  return pot.map((p) => (p.z < h ? { r: Math.max(p.r, rh - (h - p.z) * k), z: p.z } : p));
 }
 
 // clayGrams() weighs the thrown pot in wet clay. The wall runs wall mm in from the finished outside,

@@ -21,6 +21,8 @@ interface Props {
   rib: Rib; shrink: number; mini?: boolean; label?: string; edit?: EditProps;
   /** The drying shrinkage, in %. With it set, the drawing outlines the bone-dry pot too. */
   dryShrink?: number;
+  /** The trim line's height, in mm, labelled when the rib leaves clay to trim. */
+  trimLine?: number;
 }
 
 const f1 = (v: number) => v.toFixed(0);
@@ -28,7 +30,7 @@ const f1 = (v: number) => v.toFixed(0);
 // RibView draws the rib flat, as it prints, beside a cross-section of the thrown pot it shapes.
 // The drawing is in mm with y pointing up, so the group flips the SVG's downward y. With edit set,
 // the measured points become handles that you drag, and a ＋ between two points adds one there.
-export function RibView({ rib, shrink, dryShrink, mini, label, edit }: Props) {
+export function RibView({ rib, shrink, dryShrink, trimLine, mini, label, edit }: Props) {
   const svg = useRef<SVGSVGElement>(null);
   const [drag, setDrag] = useState<{ i: number; box: string } | null>(null);
   const editRef = useRef(edit);
@@ -124,6 +126,7 @@ export function RibView({ rib, shrink, dryShrink, mini, label, edit }: Props) {
         <g className="dims stages">
           <text x={-pot[pot.length - 1].r - 2} y={Y(rim) + 1.5} textAnchor="end">wet {f1(rim)}</text>
           {trimmed && <text className="trim" x={-thrown[0].r - 2} y={Y(0) - 1.5} textAnchor="end">trim {(thrown[0].r - pot[0].r).toFixed(1).replace(/\.0$/, '')}</text>}
+          {trimmed && trimLine !== undefined && <text className="trim" x={-Math.max(...thrown.filter((p) => p.z <= trimLine).map((p) => p.r)) - 2} y={Y(trimLine) + 1.2} textAnchor="end">trim line {f1(trimLine)}</text>}
           {stages.map((st) => (
             <text key={st.name} className={st.name} x={-pot[pot.length - 1].r * st.f - 2} y={Y(rim * st.f) + 1.5} textAnchor="end">{st.name} {f1(rim * st.f)}</text>
           ))}

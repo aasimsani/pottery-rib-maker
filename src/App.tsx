@@ -102,7 +102,7 @@ export function App() {
         <p>Printable profile ribs with a height scale, cut to the pot you want to throw.</p>
       </header>
       <div className="app">
-        <Controls s={s} set={set} clayG={rib.clay} selected={edit.selected} onSelect={setSelected} onBegin={remember} isSaved={shapes.some((x) => x.name === s.name)}
+        <Controls s={s} set={set} clayG={rib.clay} heelFit={rib.heelFit} selected={edit.selected} onSelect={setSelected} onBegin={remember} isSaved={shapes.some((x) => x.name === s.name)}
           onSave={() => setShapes((xs) => [...xs.filter((x) => x.name !== s.name), current])}
           onDelete={() => setShapes((xs) => xs.filter((x) => x.name !== s.name))} />
         <main>

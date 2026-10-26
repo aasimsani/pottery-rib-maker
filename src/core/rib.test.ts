@@ -32,10 +32,10 @@ function edgeDist(rib: Rib, x: number, y: number): number {
   return best;
 }
 
-test('the working edge is the pot, so the rib meets the clay along the whole profile', () => {
+test('the working edge is the thrown pot, so the rib meets the clay along the whole profile', () => {
   for (const shape of PRESETS) {
     const rib = buildRib(settings(shape));
-    for (const p of rib.pot) expect(rib.outline.some(([x, y]) => Math.abs(x - (p.r - rib.rmin)) < 1e-6 && Math.abs(y - p.z) < 1e-6)).toBe(true);
+    for (const p of rib.thrown) expect(rib.outline.some(([x, y]) => Math.abs(x - (p.r - rib.rmin)) < 1e-6 && Math.abs(y - p.z) < 1e-6)).toBe(true);
   }
 });
 
@@ -213,39 +213,58 @@ test('a decimal point prints as one small square after its digit', () => {
   expect(textWidth('4.7', 4)).toBeLessThan(textWidth('477', 4));
 });
 
-test('a trim allowance leaves extra clay at the foot that fades out by the height you set', () => {
-  const rib = buildRib({ ...mug, trim: 6, trimTo: 30 });
-  expect(rib.thrown[0].r).toBeCloseTo(46);
-  for (const [i, p] of rib.thrown.entries()) {
-    // The rib never reaches inside the finished pot, and above the fade it follows the pot exactly.
-    expect(p.z).toBeCloseTo(rib.pot[i].z);
-    expect(p.r).toBeGreaterThanOrEqual(rib.pot[i].r - 1e-9);
-    if (p.z >= 30) expect(p.r).toBeCloseTo(rib.pot[i].r);
-    if (i) expect(p.r).toBeLessThanOrEqual(rib.thrown[i - 1].r + 1e-9);
+const bowl = settings({ profile: [{ z: 0, d: 60 }, { z: 15, d: 90 }, { z: 40, d: 150 }, { z: 80, d: 200 }], shrink: 0, above: 10, body: 60 });
+const radius = (c: { r: number; z: number }[], z: number) => {
+  for (let i = 1; i < c.length; i++) if (c[i].z >= z) return c[i - 1].r + ((c[i].r - c[i - 1].r) * (z - c[i - 1].z)) / (c[i].z - c[i - 1].z);
+  return c[c.length - 1].r;
+};
+
+test('below the trim line the thrown wall runs straight down to the wheel head at the heel angle', () => {
+  for (const heel of [0, 20]) {
+    const rib = buildRib({ ...bowl, trimLine: 30, heel });
+    const rh = radius(rib.pot, 30), k = Math.tan((heel * Math.PI) / 180);
+    for (const [i, p] of rib.thrown.entries()) {
+      expect(p.z).toBeCloseTo(rib.pot[i].z);
+      // The rib never reaches inside the finished pot, and above the trim line it follows the pot exactly.
+      expect(p.r).toBeCloseTo(p.z < 30 ? Math.max(rib.pot[i].r, rh - (30 - p.z) * k) : rib.pot[i].r);
+    }
+    for (const p of rib.thrown) expect(rib.outline.some(([x, y]) => Math.abs(x - (p.r - rib.rmin)) < 1e-6 && Math.abs(y - p.z) < 1e-6)).toBe(true);
   }
-  // The working edge follows the thrown pot, not the finished one.
-  for (const p of rib.thrown) expect(rib.outline.some(([x, y]) => Math.abs(x - (p.r - rib.rmin)) < 1e-6 && Math.abs(y - p.z) < 1e-6)).toBe(true);
-  expect(rib.checks.find((c) => c.id === 'no-trim')).toBeUndefined();
+  // A vertical heel keeps the trim line's radius all the way down.
+  expect(buildRib({ ...bowl, trimLine: 30, heel: 0 }).thrown[0].r).toBeCloseTo(radius(buildRib(bowl).pot, 30));
+  expect(buildRib({ ...bowl, trimLine: 30 }).checks.find((c) => c.id === 'no-trim')).toBeUndefined();
 });
 
-test('with no trim allowance the rib throws the foot to its finished size, and says so', () => {
-  const rib = buildRib({ ...mug, trim: 0 });
+test('with no trim line the rib throws the foot to its finished size, and says so', () => {
+  const rib = buildRib({ ...mug, trimLine: 0 });
   expect(rib.thrown).toEqual(rib.pot);
+  expect(rib.trimmings).toBe(0);
   expect(rib.checks.find((c) => c.id === 'no-trim')?.level).toBe('note');
 });
 
-test('an allowance deeper than the wall is more clay than you can sensibly trim off', () => {
-  expect(buildRib({ ...mug, trim: 5, wall: 6 }).checks.find((c) => c.id === 'trim-deep')).toBeUndefined();
-  expect(buildRib({ ...mug, trim: 8, wall: 6 }).checks.find((c) => c.id === 'trim-deep')?.level).toBe('warn');
+test('trimming off more clay than the finished pot keeps is a warning', () => {
+  expect(buildRib({ ...bowl, trimLine: 20, heel: 30 }).checks.find((c) => c.id === 'trim-deep')).toBeUndefined();
+  const deep = buildRib({ ...bowl, trimLine: 70, heel: 0 });
+  expect(deep.trimmings).toBeGreaterThan(deep.clay - deep.trimmings);
+  expect(deep.checks.find((c) => c.id === 'trim-deep')?.level).toBe('warn');
 });
 
 test('the clay estimate weighs the thrown pot, and warns when you have less clay than it needs', () => {
   // An 80 mm cylinder 90 mm tall with 6 mm walls and floor holds about 147 cm³ of wet clay.
-  const rib = buildRib({ ...mug, trim: 0, wall: 6, clay: 0 });
+  const rib = buildRib({ ...mug, trimLine: 0, wall: 6, clay: 0 });
   expect(rib.clay / 1.9).toBeCloseTo(147.3, 0);
   expect(rib.checks.find((c) => c.id === 'clay')).toBeUndefined();
-  // The allowance adds clay at the foot.
-  expect(buildRib({ ...mug, trim: 6, trimTo: 30, wall: 6 }).clay).toBeGreaterThan(rib.clay);
-  expect(buildRib({ ...mug, trim: 0, wall: 6, clay: 0.5, clayUnit: 'lb' }).checks.find((c) => c.id === 'clay')?.level).toBe('warn');
-  expect(buildRib({ ...mug, trim: 0, wall: 6, clay: 1, clayUnit: 'kg' }).checks.find((c) => c.id === 'clay')?.level).toBe('note');
+  expect(buildRib({ ...bowl, trimLine: 30, heel: 10, wall: 6 }).clay).toBeGreaterThan(buildRib({ ...bowl, trimLine: 0, wall: 6 }).clay);
+  expect(buildRib({ ...mug, trimLine: 0, wall: 6, clay: 0.5, clayUnit: 'lb' }).checks.find((c) => c.id === 'clay')?.level).toBe('warn');
+  expect(buildRib({ ...mug, trimLine: 0, wall: 6, clay: 1, clayUnit: 'kg' }).checks.find((c) => c.id === 'clay')?.level).toBe('note');
+});
+
+test('your clay weight sets the heel angle that uses it, after a tenth goes to slurry', () => {
+  const fit = buildRib({ ...bowl, trimLine: 30, wall: 6, clay: 0.6, clayUnit: 'kg' }).heelFit!;
+  expect(fit).toBeGreaterThan(0);
+  expect(buildRib({ ...bowl, trimLine: 30, heel: fit, wall: 6 }).clay).toBeCloseTo(540, 0);
+  // More clay than a vertical heel holds fits at 0°, and too little clay fits no heel.
+  expect(buildRib({ ...bowl, trimLine: 30, wall: 6, clay: 20, clayUnit: 'kg' }).heelFit).toBe(0);
+  expect(buildRib({ ...bowl, trimLine: 30, wall: 6, clay: 0.1, clayUnit: 'kg' }).heelFit).toBeNull();
+  expect(buildRib({ ...bowl, trimLine: 30, wall: 6, clay: 0 }).heelFit).toBeNull();
 });

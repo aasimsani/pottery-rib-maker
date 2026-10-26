@@ -15,8 +15,8 @@ export interface Settings {
   /** How far in the edge bevel reaches on the top face, in mm, and how steep it is, in degrees from the face. 0 mm gives a square edge. */
   bevelWidth: number; bevelAngle: number;
   hole: boolean; holeD: number;
-  /** How much more clay the rib leaves at the foot for trimming, in mm, and the height where that extra fades to nothing. */
-  trim: number; trimTo: number;
+  /** The trim line's height in mm, where trimming stops, or 0 for no trimming. Below it, the rib leaves a heel of clay whose outside runs down at heel° from vertical. */
+  trimLine: number; heel: number;
   /** The thrown pot's wall and floor thickness, in mm, for the clay estimate and the 3D pot. */
   wall: number;
   /** The clay you throw with, or 0 to skip the clay check. */
@@ -45,7 +45,7 @@ export interface Settings {
 export const DEFAULTS: Settings = {
   name: 'Rounded-base mug', profile: [{ z: 0, d: 62 }, { z: 4, d: 72 }, { z: 14, d: 80 }, { z: 90, d: 80 }],
   shrink: 12, body: 60, above: 10, mirror: false, thick: 4.5, bevelWidth: 3.75, bevelAngle: 39, hole: true, holeD: 18,
-  trim: 0, trimTo: 30, wall: 6, clay: 0, clayUnit: 'lb',
+  trimLine: 25, heel: 15, wall: 6, clay: 0, clayUnit: 'lb',
   units: 'cm', scale: true, scaleNumbers: 'wet-fired', dryShrink: 6, rimLine: true, extraMarks: '', emboss: 0.6, splitMarks: true,
   ...GUARDS,
   bedW: 256, bedD: 256,
