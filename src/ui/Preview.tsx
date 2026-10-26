@@ -43,7 +43,7 @@ export function Preview({ s, rib, tris, print, plate, edit, onStl, on3mf, onSpli
     if (mode === 'print') return print
       ? <Suspense fallback={fallback}><PrintView parts={bedParts} bedW={s.bedW} bedD={s.bedD} gap={PLATE_GAP} className={className} label={`Print plate: this rib${plate.length ? ` and ${plate.length} more` : ''} on a ${s.bedW} × ${s.bedD} mm bed`} /></Suspense>
       : <div className={`${className} loading`}>No print file: the rib doesn't fit the bed.</div>;
-    return <Suspense fallback={fallback}><Wheel3D rib={rib} tris={tris} thick={s.thick} shrink={s.shrink} mode={mode} className={className} label={`3D view of ${label}`} /></Suspense>;
+    return <Suspense fallback={fallback}><Wheel3D rib={rib} tris={tris} thick={s.thick} wall={s.wall} shrink={s.shrink} mode={mode} className={className} label={`3D view of ${label}`} /></Suspense>;
   };
   const modeToggle = (
     <div className="seg" role="group" aria-label="3D view">
@@ -54,7 +54,7 @@ export function Preview({ s, rib, tris, print, plate, edit, onStl, on3mf, onSpli
   );
   const hint = mode === 'print'
     ? (plate.length ? `This rib is in teal, beside the ${plate.length} on the plate.` : 'The exact STL that Download STL saves, on the bed.')
-    : mode === 'fired' ? `The pot after firing, ${s.shrink}% smaller than it was thrown.` : 'Drag to rotate, scroll to zoom.';
+    : mode === 'fired' ? `The pot after trimming and firing, ${s.shrink}% smaller than it was thrown.` : 'Drag to rotate, scroll to zoom.';
 
   const errors = rib.checks.filter((c) => c.level === 'error').length, warns = rib.checks.filter((c) => c.level === 'warn').length;
   const columns = { none: '', wet: 'wet', 'wet-fired': 'wet / fired', 'wet-dry-fired': 'wet / dry / fired' }[s.scaleNumbers];

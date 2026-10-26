@@ -29,7 +29,7 @@ function PotEditor({ s, set, onSave, isSaved, onDelete, selected, onSelect, onBe
           <button className="secondary small" onClick={onSave}>Save to my shapes</button>
           {isSaved && <button className="secondary small" onClick={onDelete}>Delete</button>}
         </div>
-        <p className="hint">Draw the pot on the rib drawing, or type exact numbers here. They are the pot as you throw it, wet, from the rim down to the base.</p>
+        <p className="hint">Draw the pot on the rib drawing, or type exact numbers here. They are the wet pot after trimming, from the rim down to the base.</p>
         <table className="points">
           <thead><tr><th scope="col">Point</th><th scope="col">Height</th><th scope="col">Ø</th><th scope="col">Corner</th><th><span className="visually-hidden">Remove</span></th></tr></thead>
           <tbody>
@@ -85,11 +85,24 @@ function PotEditor({ s, set, onSave, isSaved, onDelete, selected, onSelect, onBe
   );
 }
 
-export function Controls(props: EditorProps) {
+export function Controls(props: EditorProps & { clayG: number }) {
   const { s, set } = props;
   return (
     <aside className="panel controls" aria-label="Pot and rib settings">
       <PotEditor {...props} />
+
+      <Section title="Trimming and clay">
+        <NumberField label="Leave for trimming" unit="mm" value={s.trim} min={0} max={20} step={0.5} onChange={(v) => set('trim', v)} />
+        {s.trim > 0 && <NumberField label="Fades out by" unit="mm" value={s.trimTo} min={5} max={200} step={1} onChange={(v) => set('trimTo', v)} />}
+        <NumberField label="Wall thickness" unit="mm" value={s.wall} min={2} max={20} step={0.5} onChange={(v) => set('wall', v)} />
+        <NumberField label="Clay weight" unit={s.clayUnit} value={s.clay} min={0} max={50} step={0.25} onChange={(v) => set('clay', v)} />
+        <SelectField label="Weight in" value={s.clayUnit} onChange={(v) => set('clayUnit', v)} options={[['lb', 'pounds'], ['kg', 'kilograms']]} />
+        <p className="hint">
+          The pot measurements are the pot after trimming. The rib leaves extra clay at the foot, the most at the wheel head,
+          fading to none at the height you set, so the top still gets its full shape. The drawing shades the clay you'll trim off.
+          {props.clayG > 0 && ` With ${s.wall} mm walls and floor, the thrown pot takes about ${(props.clayG / (s.clayUnit === 'lb' ? 453.6 : 1000)).toFixed(1)} ${s.clayUnit} of clay.${s.clay ? '' : ' Enter your clay weight to check it against the pot.'}`}
+        </p>
+      </Section>
 
       <Section title="Rib">
         <NumberField label="Narrowest width" unit="mm" value={s.body} min={3} max={150} step={1} onChange={(v) => set('body', v)} />

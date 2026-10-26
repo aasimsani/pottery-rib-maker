@@ -91,7 +91,7 @@ export function App() {
     copy.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
     copy.setAttribute('width', `${w}mm`); copy.setAttribute('height', `${h}mm`);
     const css = getComputedStyle(document.documentElement), v = (n: string) => css.getPropertyValue(n).trim();
-    copy.insertAdjacentHTML('afterbegin', `<style>.pot{fill:${v('--clay')};stroke:${v('--clay-line')};stroke-width:.4}.rib{fill:${v('--plastic')}}.mark{fill:${v('--mark')}}.wheel,.dims line{stroke:${v('--muted')};stroke-width:.4}.dims text{font:4px sans-serif;fill:${v('--muted')}}</style>`);
+    copy.insertAdjacentHTML('afterbegin', `<style>.pot{fill:${v('--clay')};stroke:${v('--clay-line')};stroke-width:.4}.trim{fill:${v('--clay-line')}}.trimmed{fill:none;stroke:${v('--ink')};stroke-width:.4;stroke-dasharray:1.2 1}.rib{fill:${v('--plastic')}}.mark{fill:${v('--mark')}}.wheel,.dims line{stroke:${v('--muted')};stroke-width:.4}.dims text{font:4px sans-serif;fill:${v('--muted')}}</style>`);
     download(new Blob([copy.outerHTML], { type: 'image/svg+xml' }), `${exportName(s, rib)}.svg`);
   };
 
@@ -102,7 +102,7 @@ export function App() {
         <p>Printable profile ribs with a height scale, cut to the pot you want to throw.</p>
       </header>
       <div className="app">
-        <Controls s={s} set={set} selected={edit.selected} onSelect={setSelected} onBegin={remember} isSaved={shapes.some((x) => x.name === s.name)}
+        <Controls s={s} set={set} clayG={rib.clay} selected={edit.selected} onSelect={setSelected} onBegin={remember} isSaved={shapes.some((x) => x.name === s.name)}
           onSave={() => setShapes((xs) => [...xs.filter((x) => x.name !== s.name), current])}
           onDelete={() => setShapes((xs) => xs.filter((x) => x.name !== s.name))} />
         <main>
