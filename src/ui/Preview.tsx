@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import type { Settings } from '../state';
 import type { Rib } from '../core/rib';
 import type { PlatePart } from '../core/plate';
@@ -7,6 +7,7 @@ import { RibView, type EditProps } from './RibView';
 import { useDialog } from './dialog';
 import { PLATE_GAP } from './PlatePanel';
 import { CheckField } from './fields';
+import { registerViewMode } from '../mcp/viewMode';
 
 // three.js is about 600 kB, so the 3D views load after the rest of the page.
 const Wheel3D = lazy(() => import('./Wheel3D'));
@@ -30,6 +31,7 @@ export function Preview({ s, rib, tris, print, plate, edit, onStl, on3mf, onSpli
   const [expanded, setExpanded] = useState(false);
   const dialog = useRef<HTMLDivElement>(null), svgHost = useRef<HTMLDivElement>(null);
   useDialog(dialog, expanded, () => setExpanded(false));
+  useEffect(() => { registerViewMode(setMode); return () => registerViewMode(null); }, []);
 
   const ok = rib.outline.length > 0;
   const sel = edit.selected !== null ? edit.profile[edit.selected] : undefined;

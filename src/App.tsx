@@ -12,6 +12,10 @@ import { Preview } from './ui/Preview';
 import { PlatePanel } from './ui/PlatePanel';
 import { Library } from './ui/Library';
 import { PhotoRib } from './ui/PhotoRib';
+import { standaloneSvg } from './ui/svgExport';
+import { ConnectClaude } from './ui/ConnectClaude';
+import { makeHandlers } from './mcp/tab';
+import { PRESETS } from './presets';
 
 const download = (blob: Blob, name: string) => {
   const a = document.createElement('a');
@@ -83,23 +87,55 @@ export function App() {
   const print = useMemo(() => exportSTL(s, rib), [s, rib]);
 
   const [photoOpen, setPhotoOpen] = useState(false);
+
+  // Claude's handlers read the latest render through a ref, and change the rib through the same state your edits change.
+  // Each change Claude makes gets a number, and renderedEdit reaches it in the render that shows the new rib.
+  const [renderedEdit, setRenderedEdit] = useState(0);
+  const edits = useRef(0);
+  const actions = { onStl: () => {}, on3mf: async () => {}, onSvg: () => {} };
+  const latest = useRef({ s, rib, renderedEdit, shapes: [...PRESETS, ...shapes], actions });
+  latest.current = { s, rib, renderedEdit, shapes: [...PRESETS, ...shapes], actions };
+  const handlers = useMemo(() => makeHandlers({
+    get: () => latest.current,
+    commit: (next) => {
+      const e = ++edits.current;
+      remember();
+      setSaved(next); setSelected(null); setRenderedEdit(e);
+      return e;
+    },
+    exportFile: async (format) => {
+      const { s: cur, rib: r, actions: a } = latest.current;
+      if (format === 'stl') a.onStl(); else if (format === '3mf') await a.on3mf(); else a.onSvg();
+      return `${exportName(cur, r)}.${format}`;
+    },
+  }), []); // eslint-disable-line react-hooks/exhaustive-deps
   const pick = ({ name, profile, body, above, mirror }: Shape) => { remember(); setSelected(null); setSaved((prev) => ({ ...prev, name, profile, body, above, mirror })); };
   const current: Shape = { group: 'pots', name: s.name, profile: s.profile, body: s.body, above: s.above, mirror: s.mirror };
-  const onSvg = (svg: SVGSVGElement) => {
-    // The saved drawing is in mm, so it prints or cuts at full size.
-    const copy = svg.cloneNode(true) as SVGSVGElement, { width: w, height: h } = svg.viewBox.baseVal;
-    copy.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-    copy.setAttribute('width', `${w}mm`); copy.setAttribute('height', `${h}mm`);
-    const css = getComputedStyle(document.documentElement), v = (n: string) => css.getPropertyValue(n).trim();
-    copy.insertAdjacentHTML('afterbegin', `<style>.pot{fill:${v('--clay')};stroke:${v('--clay-line')};stroke-width:.4}.trim{fill:${v('--clay-line')}}.trimmed{fill:none;stroke:${v('--ink')};stroke-width:.4;stroke-dasharray:1.2 1}.rib{fill:${v('--plastic')}}.mark{fill:${v('--mark')}}.wheel,.dims line{stroke:${v('--muted')};stroke-width:.4}.dims text{font:4px sans-serif;fill:${v('--muted')}}</style>`);
-    download(new Blob([copy.outerHTML], { type: 'image/svg+xml' }), `${exportName(s, rib)}.svg`);
+  const onSvg = (svg: SVGSVGElement) => download(new Blob([standaloneSvg(svg).text], { type: 'image/svg+xml' }), `${exportName(s, rib)}.svg`);
+  const onStl = () => {
+    if (!print) return;
+    // A rib in parts saves as one STL per part, because an STL holds one solid.
+    const files = print.parts?.map((p, i) => ({ stl: p.stl, name: `${print.name}_${i ? 'marks' : 'rib'}.stl` })) ?? [{ stl: print.stl, name: `${print.name}.stl` }];
+    for (const f of files) download(new Blob([f.stl], { type: 'model/stl' }), f.name);
   };
+  const on3mf = async () => {
+    // The 3MF holds the rib alone, centred on the bed, with its parts when it has them.
+    const zip = print && await plate3mf([{ ...print, name: s.name }], s.bedW, s.bedD);
+    if (zip) download(new Blob([zip as BlobPart], { type: 'model/3mf' }), `${print.name}.3mf`);
+  };
+  actions.onStl = onStl; actions.on3mf = on3mf;
+  actions.onSvg = () => { const svg = document.querySelector<SVGSVGElement>('svg.rib-svg:not(.mini)'); if (svg) onSvg(svg); };
 
   return (
     <>
       <header>
-        <h1>Pottery Rib Maker</h1>
-        <p>Printable profile ribs with a height scale, cut to the pot you want to throw.</p>
+        <div className="header-row">
+          <div>
+            <h1>Pottery Rib Maker</h1>
+            <p>Printable profile ribs with a height scale, cut to the pot you want to throw.</p>
+          </div>
+          <ConnectClaude handlers={handlers} />
+        </div>
       </header>
       <div className="app">
         <Controls s={s} set={set} clayG={rib.clay} heelFit={rib.heelFit} selected={edit.selected} onSelect={setSelected} onBegin={remember} isSaved={shapes.some((x) => x.name === s.name)}
@@ -107,18 +143,9 @@ export function App() {
           onDelete={() => setShapes((xs) => xs.filter((x) => x.name !== s.name))} />
         <main>
           <Preview s={s} rib={rib} tris={tris} edit={edit} print={print} plate={plate} onSvg={onSvg}
-            onStl={() => {
-              if (!print) return;
-              // A rib in parts saves as one STL per part, because an STL holds one solid.
-              const files = print.parts?.map((p, i) => ({ stl: p.stl, name: `${print.name}_${i ? 'marks' : 'rib'}.stl` })) ?? [{ stl: print.stl, name: `${print.name}.stl` }];
-              for (const f of files) download(new Blob([f.stl], { type: 'model/stl' }), f.name);
-            }}
+            onStl={onStl}
             onSplitMarks={(v) => set('splitMarks', v)}
-            on3mf={async () => {
-              // The 3MF holds the rib alone, centred on the bed, with its parts when it has them.
-              const zip = print && await plate3mf([{ ...print, name: s.name }], s.bedW, s.bedD);
-              if (zip) download(new Blob([zip as BlobPart], { type: 'model/3mf' }), `${print.name}.3mf`);
-            }}
+            on3mf={on3mf}
             onAddToPlate={() => print && setPlate((p) => [...p, print])} />
           <PlatePanel plate={plate} bedW={s.bedW} bedD={s.bedD} onRemove={(i) => setPlate((p) => p.filter((_, k) => k !== i))}
             onClear={() => setPlate([])} onDownload={(zip, name) => download(new Blob([zip as BlobPart], { type: 'model/3mf' }), name)} />

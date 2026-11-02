@@ -65,3 +65,15 @@ The app samples a centripetal Catmull-Rom curve through the measurements. Points
 ## License
 
 MIT
+
+## Use with Claude
+
+Claude can look at your rib and change it while you watch, through an MCP server on the app's Worker.
+
+1. Run `npm run dev:worker` and `npm run dev`, then open http://localhost:5174.
+2. Press **Connect Claude** in the header, and pass the person check.
+3. Run the `claude mcp add …` command the app shows, once.
+4. Ask Claude to design a rib, or use the `design_rib` prompt. Claude can read the rib, view the drawing and the 3D pot,
+   change settings and the profile, pick a library shape, save checkpoints and compare them, and download the files.
+
+Closing the tab or pressing **Disconnect** stops Claude.
