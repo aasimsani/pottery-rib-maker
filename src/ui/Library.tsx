@@ -11,12 +11,16 @@ const TABS: { id: Tab; label: string; hint: string }[] = [
   { id: 'saved', label: 'Saved', hint: 'The shapes you save stay in this browser.' },
 ];
 
+// tabInfo() looks up a saved tab. An older version, or a sister app on the same site, may have saved a tab that
+// this library doesn't have, so an unknown tab falls back to the first one rather than crashing the page.
+export const tabInfo = (saved: string) => TABS.find((t) => t.id === saved) ?? TABS[0];
+
 const sameShape = (a: Shape, s: Settings) => a.name === s.name && JSON.stringify(a.profile) === JSON.stringify(s.profile);
 
 /** Lists the ribs you can start from. A click loads the shape and keeps your size and mark settings. */
 export function Library({ s, onPick, saved, onPhoto }: { s: Settings; onPick: (shape: Shape) => void; saved: Shape[]; onPhoto: () => void }) {
-  const [tab, setTab] = usePersistent<Tab>('library.tab', 'pots');
-  const info = TABS.find((t) => t.id === tab)!;
+  const [savedTab, setTab] = usePersistent<Tab>('library.tab', 'pots');
+  const info = tabInfo(savedTab), tab = info.id;
   const shapes = tab === 'saved' ? saved : PRESETS.filter((p) => p.group === tab);
   // Thumbnails use the default marks, so the cards stay the same while you tweak the current rib.
   const ribs = useMemo(() => shapes.map((shape) => buildRib({ ...DEFAULTS, ...shape })), [shapes]);

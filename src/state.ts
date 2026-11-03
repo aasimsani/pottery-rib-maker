@@ -51,18 +51,43 @@ export const DEFAULTS: Settings = {
   bedW: 256, bedD: 256,
 };
 
+// All three pottery apps run on aasimsani.net and share one localStorage, so each app keeps its keys under its own
+// prefix. Nothing is shared, because the rib maker saves its own kind of shape.
+const APP = 'rib.';
+const SHARED = new Set<string>([]);
+export const storageKey = (key: string) => (SHARED.has(key) ? key : APP + key);
+
+// settingsFromLegacy() keeps this app's fields from settings saved under the bare "settings" key. The stencil maker
+// saved its settings under that key too, and each app wrote the other's fields back. When the object holds the
+// stencil maker's fields, it also drops thick and above, because both apps use those names for different things.
+const OWN = new Set([...Object.keys(DEFAULTS)]);
+export function settingsFromLegacy(saved: Record<string, unknown>): Record<string, unknown> {
+  const mixed = ['piece', 'coverage', 'bandFrom'].some((k) => k in saved);
+  return Object.fromEntries(Object.entries(saved).filter(([k]) => OWN.has(k) && !(mixed && (k === 'thick' || k === 'above'))));
+}
+const identity = (v: unknown) => v;
+const LEGACY: Record<string, (v: unknown) => unknown> = {
+  settings: (v) => (v && typeof v === 'object' ? settingsFromLegacy(v as Record<string, unknown>) : {}),
+  shapes: identity,
+  keepProportions: identity,
+};
+
 // usePersistent() is useState backed by localStorage. Storage can be missing or full
-// (private windows), so failures fall back to in-memory state.
+// (private windows, large uploaded images), so failures fall back to in-memory state.
+// The first load reads what an older version saved under the bare key, through LEGACY, and saves it under the prefix.
 export function usePersistent<T>(key: string, initial: T | (() => T)): [T, (v: T | ((prev: T) => T)) => void] {
+  const full = storageKey(key);
   const [value, setValue] = useState<T>(() => {
     try {
-      const raw = localStorage.getItem(key);
+      const raw = localStorage.getItem(full);
       if (raw) return JSON.parse(raw) as T;
+      const old = full !== key && LEGACY[key] ? localStorage.getItem(key) : null;
+      if (old) return LEGACY[key](JSON.parse(old)) as T;
     } catch { /* fall through to the initial value */ }
     return typeof initial === 'function' ? (initial as () => T)() : initial;
   });
   useEffect(() => {
-    try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* storage full or blocked */ }
-  }, [key, value]);
+    try { localStorage.setItem(full, JSON.stringify(value)); } catch { /* storage full or blocked */ }
+  }, [full, value]);
   return [value, setValue];
 }
