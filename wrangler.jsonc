@@ -12,8 +12,8 @@
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Session"] }],
   // Five new sessions a minute per IP, and 60 tool calls a minute per session.
   "ratelimits": [
-    { "name": "SESSION_RATE", "namespace_id": "1003", "simple": { "limit": 5, "period": 60 } },
-    { "name": "CALL_RATE", "namespace_id": "1004", "simple": { "limit": 60, "period": 60 } }
+    { "name": "SESSION_RATE", "namespace_id": "1005", "simple": { "limit": 5, "period": 60 } },
+    { "name": "CALL_RATE", "namespace_id": "1006", "simple": { "limit": 60, "period": 60 } }
   ],
   "routes": [{ "pattern": "aasimsani.net/projects/pottery-rib-maker*", "zone_name": "aasimsani.net" }],
   // The workers.dev address stays on so that aasimsani.net can fall back to it.
