@@ -68,12 +68,24 @@ MIT
 
 ## Use with Claude
 
-Claude can look at your rib and change it while you watch, through an MCP server on the app's Worker.
+Claude can look at your rib, change it, and look again while you watch. It connects through a Model Context Protocol
+(MCP) server on the app's Cloudflare Worker. It only works while your tab is open.
 
-1. Run `npm run dev:worker` and `npm run dev`, then open http://localhost:5174.
-2. Press **Connect Claude** in the header, and pass the person check.
-3. Run the `claude mcp add …` command the app shows, once.
-4. Ask Claude to design a rib, or use the `design_rib` prompt. Claude can read the rib, view the drawing and the 3D pot,
-   change settings and the profile, pick a library shape, save checkpoints and compare them, and download the files.
+1. Open the app at https://aasimsani.net/projects/pottery-rib-maker/.
+2. Select **Connect Claude** in the header.
+3. Complete the person check.
+4. Copy the `claude mcp add` command from the panel.
+5. Run the command in a terminal.
+6. Start a new Claude Code session.
+7. Run the `/mcp__pottery-rib__design_rib` prompt.
 
-Closing the tab or pressing **Disconnect** stops Claude.
+The session lasts one week. Claude can only change the design while your tab stays open. To end the session, select
+**Disconnect**.
+
+To run the app on your computer:
+
+1. Run `npm run dev:worker`.
+2. In a second terminal, run `npm run dev`.
+3. Open http://localhost:5174.
+
+The local Worker uses the Turnstile test key from `.dev.vars.example`. As a result, the person check always passes.
