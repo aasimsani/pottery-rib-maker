@@ -30,3 +30,19 @@ tool forks the closest existing app rather than starting fresh.
 - `src/core/mesh.ts` extrudes the rib and writes the STL. `src/core/plate.ts` writes the 3MF plate.
 - `src/presets.ts` holds the library shapes, including the five ribs of the MakerWorld Ceramic Rib Tool Set.
 - `src/ui/` holds the React panels and the three.js views.
+
+## MCP
+
+Claude drives the open tab through an MCP route on the app's own Worker, the same design as the roller's.
+`docs/rfc_mcp.html` explains it.
+
+- `worker/index.ts` handles `/session/new` (Turnstile and a per-IP limit), `/session/ws` (the tab's socket) and
+  `/mcp` (token check, per-session limit, then `createMcpHandler`). It hands every other request to `src/cloudflare.ts`.
+- `worker/session.ts` is the Session Durable Object, which relays calls to the tab with `worker/relay.ts`.
+- `worker/server.ts` builds the tools and prompts. Every tool forwards to the tab.
+- `src/mcp/ops.ts` checks and applies changes. Profiles go through the drawing guards (`src/core/edit.ts`, `profileError`,
+  `foldsAt`), so Claude can't save a profile you couldn't draw, and a batch applies whole or not at all.
+- `src/mcp/tab.ts` answers the calls. The rib builds during the render, so a reply waits until the page has rendered
+  the edit (`renderedEdit` in `src/App.tsx`). Each of Claude's edits joins the undo history.
+- Run it locally with `npm run dev:worker` (port 8789) and `npm run dev` (port 5174), open http://localhost:5174, press
+  **Connect Claude**, and run the command it shows.
